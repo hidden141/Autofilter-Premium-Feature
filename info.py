@@ -18,9 +18,9 @@ def is_enabled(value, default):
 # Bot Information Configuration
 # ============================
 SESSION = environ.get('SESSION', 'royal_search')   # Session name for the bot
-API_ID = int(environ.get('API_ID', '')) # API ID from my.telegram.org
-API_HASH = environ.get('API_HASH', '')  # API Hash from my.telegram.org
-BOT_TOKEN = environ.get('BOT_TOKEN', "")    # Bot token from @BotFather
+API_ID = int(environ.get('30957124', '')) # API ID from my.telegram.org
+API_HASH = environ.get('38d0b82769881fa358257222b7ac8785', '')  # API Hash from my.telegram.org
+BOT_TOKEN = environ.get('8943331192:AAGRXx6-aohTpPxrNwaPzH-149G8WAXxAWc', "")    # Bot token from @BotFather
 
 # ============================
 # Bot Settings Configuration
@@ -44,8 +44,8 @@ FSUB_PICS = (environ.get('FSUB_PICS', 'https://graph.org/file/7478ff3eac37f4329c
 ADMINS = [int(admin) if id_pattern.search(admin) else admin for admin in environ.get('ADMINS', '').split()] # Replace with the actual admin ID(s) to add
 CHANNELS = [int(ch) if id_pattern.search(ch) else ch for ch in environ.get('CHANNELS', '-100').split()]  # Channel id for auto indexing (make sure bot is admin)
 
-LOG_CHANNEL = int(environ.get('LOG_CHANNEL', '-100'))  # Log channel id (make sure bot is admin)
-BIN_CHANNEL = int(environ.get('BIN_CHANNEL', '-100'))  # Bin channel id (make sure bot is admin)
+LOG_CHANNEL = int(environ.get('-1004379059015', '-100'))  # Log channel id (make sure bot is admin)
+BIN_CHANNEL = int(environ.get('-1004476058811', '-100'))  # Bin channel id (make sure bot is admin)
 PREMIUM_LOGS = int(environ.get('PREMIUM_LOGS', '-100'))  # Premium logs channel id
 DELETE_CHANNELS = [int(dch) if id_pattern.search(dch) else dch for dch in environ.get('DELETE_CHANNELS', '-100').split()] #(make sure bot is admin)
 support_chat_id = environ.get('SUPPORT_CHAT_ID', '-100')  # Support group id (make sure bot is admin)
@@ -73,8 +73,8 @@ STAR_PREMIUM_PLANS = {
 # ============================
 # MongoDB Configuration
 # ============================
-DATABASE_URI = environ.get('DATABASE_URI', "")  # MongoDB URI for the database
-DATABASE_NAME = environ.get('DATABASE_NAME', "Cluster0") # Database name (default: cluster)
+DATABASE_URI = environ.get('DATABASE_URI', "mongodb+srv://one2yadavv_db_user:vevaOVyOk7uGoEQM@roaoric.ckkknpy.mongodb.net/?appName=roaoric")  # MongoDB URI for the database
+DATABASE_NAME = environ.get('DATABASE_NAME', "roaoric") # Database name (default: cluster)
 COLLECTION_NAME = environ.get('COLLECTION_NAME', 'royal_files') # Collection name (default: dreamcinezone_files)
 
 # If MULTIPLE_DB Is True Then Fill DATABASE_URI2 Value Else You Will Get Error.
@@ -100,9 +100,9 @@ LOG_VR_CHANNEL = int(environ.get('LOG_VR_CHANNEL', '-100')) #Verification Channe
 LOG_API_CHANNEL = int(environ.get('LOG_API_CHANNEL', '-100')) #If Anyone Set Your Bot In Any Group And Set Shortner In That Group Then In This Channel The All Details Come
 VERIFY_IMG = environ.get("VERIFY_IMG", "https://telegra.ph/file/9ecc5d6e4df5b83424896.jpg")
 
-TUTORIAL = environ.get("TUTORIAL", "https://t.me/roaroic0")   # Tutorial link for verification
-TUTORIAL_2 = environ.get("TUTORIAL_2", "https://t.me/roaroic0")   # Second tutorial link for verification
-TUTORIAL_3 = environ.get("TUTORIAL_3", "https://t.me/roaroic0")   # Third tutorial link for verification
+TUTORIAL = environ.get("TUTORIAL", "https://t.me/roaroicgroup")   # Tutorial link for verification
+TUTORIAL_2 = environ.get("TUTORIAL_2", "https://t.me/roaroic1")   # Second tutorial link for verification
+TUTORIAL_3 = environ.get("TUTORIAL_3", "https://t.me/roaroic1")   # Third tutorial link for verification
 
 # Verification (Must Fill All Veriables. Else You Got Error
 SHORTENER_API = environ.get("SHORTENER_API", "2469484d258897da1dc9edaf4face6f466301f39") # Shortener API key
@@ -120,9 +120,9 @@ THREE_VERIFY_GAP = int(environ.get('THREE_VERIFY_GAP', "54000"))
 # ============================
 # Channel & Group Links Configuration
 # ============================
-GRP_LNK = environ.get('GRP_LNK', 'https://t.me/+vjB8ArkS8Co3NTM1') # Group link for the bot
+GRP_LNK = environ.get('GRP_LNK', 'https://t.me/roaroicgroup') # Group link for the bot
 OWNER_LNK = environ.get('OWNER_LNK', 'https://t.me/roaroic') # Owner link for the bot
-UPDATE_CHNL_LNK = environ.get('UPDATE_CHNL_LNK', 'https://t.me/roaroic0') # Update channel link for the bot
+UPDATE_CHNL_LNK = environ.get('UPDATE_CHNL_LNK', 'https://t.me/roaroic1') # Update channel link for the bot
 
 # ============================
 # User Configuration
