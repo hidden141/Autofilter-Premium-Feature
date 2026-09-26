@@ -1534,7 +1534,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
         )
     elif query.data == "ɢʀᴏᴜᴘ":
         buttons = [[
-            InlineKeyboardButton(' sᴇᴀʀᴄʜ ɢʀᴏᴜᴘ ️', callback_data='disclaimer'),
+            InlineKeyboardButton(' sᴇᴀʀᴄʜ ɢʀᴏᴜᴘ ️', callback_data='ɢʀᴏᴜᴘ'),
             InlineKeyboardButton('⇋ ʙᴀᴄᴋ ᴛᴏ ʜᴏᴍᴇ ⇋', callback_data='start')
         ]]
         reply_markup = InlineKeyboardMarkup(buttons)
@@ -1581,7 +1581,19 @@ async def cb_handler(client: Client, query: CallbackQuery):
 
     elif query.data == "source":
         buttons = [[
-            InlineKeyboardButton('Source Code 📜', url='https://t.me/royalkrrishna'),
+            InlineKeyboardButton('Source Code 📜', url='https://t.me/roaroic0'),
+            InlineKeyboardButton('⇋ ʙᴀᴄᴋ ⇋', callback_data='about')
+        ]]
+        reply_markup = InlineKeyboardMarkup(buttons)
+        await query.message.edit_text(
+            text=script.SOURCE_TXT,
+            reply_markup=reply_markup,
+            parse_mode=enums.ParseMode.HTML
+        )
+
+ elif query.data == "ɢʀᴏᴜᴘ":
+        buttons = [[
+            InlineKeyboardButton('Source Code 📜', url='https://t.me/roaroicgroup'),
             InlineKeyboardButton('⇋ ʙᴀᴄᴋ ⇋', callback_data='about')
         ]]
         reply_markup = InlineKeyboardMarkup(buttons)
