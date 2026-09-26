@@ -35,9 +35,9 @@ class script(object):
 🚀 ꜰᴏʟʟᴏᴡ ᴛʜᴇꜱᴇ ꜱᴛᴇᴘꜱ!
 </b>"""
 
-    ABOUT_TXT = """<b>👋 HEY <span>...</span>,
+    ABOUT_TXT = """<b>👋 HEY... ,
     
-    <"quote-box">
+    
     CURIOSITY IS MY COMPASS, TECH IS MY ENGINE, AND INNOVATION IS MY DESTINATION.
 
     <span>😎 TO KNOW MORE ABOUT ME, YOU CAN CHAT WITH US 🧑‍💻</span>
