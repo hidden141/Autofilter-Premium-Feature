@@ -35,12 +35,11 @@ class script(object):
 🚀 ꜰᴏʟʟᴏᴡ ᴛʜᴇꜱᴇ ꜱᴛᴇᴘꜱ!
 </b>"""
 
-    ABOUT_TXT = """<b>👋 HEY... ,
-    
+    ABOUT_TXT = """<b>👋HEY ...,
     
     <blockquote>CURIOSITY IS MY COMPASS, TECH IS MY ENGINE, AND INNOVATION IS MY DESTINATION.</blockquote>
 
-    <span>😎 TO KNOW MORE ABOUT ME, YOU CAN CHAT WITH US 🧑‍💻</span>
+           😎 TO KNOW MORE ABOUT ME, YOU CAN CHAT WITH US 🧑‍💻
     </b>"""
     RESTART_TXT = """
 <b>{} Bᴏᴛ Rᴇsᴛᴀʀᴛᴇᴅ !
