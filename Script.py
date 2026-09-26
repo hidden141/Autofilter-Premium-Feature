@@ -35,97 +35,13 @@ class script(object):
 🚀 ꜰᴏʟʟᴏᴡ ᴛʜᴇꜱᴇ ꜱᴛᴇᴘꜱ!
 </b>"""
 
-    ABOUT_TXT = """<b<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chat Intro</title>
-<style>
-  body {
-    background: #111b27;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    font-family: 'Segoe UI', Arial, sans-serif;
-    margin: 0;
-  }
-  .chat-card {
-    background: #1e2c3a;
-    border-radius: 12px;
-    padding: 18px 20px;
-    max-width: 480px;
-    width: 90%;
-    color: #e6edf3;
-  }
-  .top-line {
-    font-weight: 700;
-    font-size: 20px;
-    letter-spacing: 0.5px;
-    margin-bottom: 16px;
-  }
-  .top-line span {
-    color: #5aa9ff;
-  }
-  .quote-box {
-    background: #2a3645;
-    border-left: 4px solid #f5a623;
-    border-radius: 6px;
-    padding: 14px 18px;
-    position: relative;
-    font-weight: 700;
-    font-size: 16px;
-    line-height: 1.5;
-    letter-spacing: 0.3px;
-  }
-  .quote-box::after {
-    content: '"';
-    position: absolute;
-    top: 8px;
-    right: 12px;
-    font-size: 32px;
-    color: #f5a623;
-    font-family: serif;
-    line-height: 1;
-  }
-  .bottom-line {
-    margin-top: 20px;
-    font-weight: 700;
-    font-size: 17px;
-    line-height: 1.4;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px;
-  }
-  .edited {
-    margin-left: auto;
-    font-weight: 400;
-    font-size: 13px;
-    color: #8b949e;
-    white-space: nowrap;
-  }
-</style>
-</head>
-<body>
-
-<div class="chat-card">
-  <div class="top-line">👋 HEY <span>...</span>,</div>
-  
-  <div class="quote-box">
+    ABOUT_TXT = """<b>👋 HEY <span>...</span>,
+    
+    <"quote-box">
     CURIOSITY IS MY COMPASS, TECH IS MY ENGINE, AND INNOVATION IS MY DESTINATION.
-  </div>
 
-  <div class="bottom-line">
     <span>😎 TO KNOW MORE ABOUT ME, YOU CAN CHAT WITH US 🧑‍💻</span>
-    <span class="edited">edited at 12:23 PM</span>
-  </div>
-</div>
-
-</body>
-</html>
-    Curi</b>"""
+    </b>"""
     RESTART_TXT = """
 <b>{} Bᴏᴛ Rᴇsᴛᴀʀᴛᴇᴅ !
 
