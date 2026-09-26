@@ -1543,7 +1543,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
             reply_markup=reply_markup,
             disable_web_page_preview=True,
             parse_mode=enums.ParseMode.HTML
-        
+        )
 
     elif query.data == "give_trial":
         try:
