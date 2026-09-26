@@ -38,7 +38,7 @@ class script(object):
     ABOUT_TXT = """<b>👋 HEY... ,
     
     
-    CURIOSITY IS MY COMPASS, TECH IS MY ENGINE, AND INNOVATION IS MY DESTINATION.
+    <blockquote>CURIOSITY IS MY COMPASS, TECH IS MY ENGINE, AND INNOVATION IS MY DESTINATION.</blockquote>
 
     <span>😎 TO KNOW MORE ABOUT ME, YOU CAN CHAT WITH US 🧑‍💻</span>
     </b>"""
