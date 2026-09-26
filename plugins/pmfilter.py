@@ -1532,18 +1532,6 @@ async def cb_handler(client: Client, query: CallbackQuery):
             disable_web_page_preview=True,
             parse_mode=enums.ParseMode.HTML
         )
-    elif query.data == "ɢʀᴏᴜᴘ":
-        buttons = [[
-            InlineKeyboardButton(' sᴇᴀʀᴄʜ ɢʀᴏᴜᴘ ️', callback_data='ɢʀᴏᴜᴘ'),
-            InlineKeyboardButton('⇋ ʙᴀᴄᴋ ᴛᴏ ʜᴏᴍᴇ ⇋', callback_data='start')
-        ]]
-        reply_markup = InlineKeyboardMarkup(buttons)
-        await query.message.edit_text(
-            text=script.ABOUT_TXT.format(temp.U_NAME, temp.B_NAME, OWNER_LNK),
-            reply_markup=reply_markup,
-            disable_web_page_preview=True,
-            parse_mode=enums.ParseMode.HTML
-        )
 
     elif query.data == "give_trial":
         try:
@@ -1581,7 +1569,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
 
     elif query.data == "source":
         buttons = [[
-            InlineKeyboardButton('Source Code 📜', url='https://t.me/roaroic0'),
+            InlineKeyboardButton('ADMIN📜', url='https://t.me/roaroic0'),
             InlineKeyboardButton('⇋ ʙᴀᴄᴋ ⇋', callback_data='about')
         ]]
         reply_markup = InlineKeyboardMarkup(buttons)
@@ -1598,7 +1586,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
         ]]
         reply_markup = InlineKeyboardMarkup(buttons)
         await query.message.edit_text(
-            text=script.SOURCE_TXT,
+            text=script.GROUP_TXT,
             reply_markup=reply_markup,
             parse_mode=enums.ParseMode.HTML
         )
