@@ -106,14 +106,14 @@ TUTORIAL_2 = environ.get("TUTORIAL_2", "https://t.me/roaroic0")   # Second tutor
 TUTORIAL_3 = environ.get("TUTORIAL_3", "https://t.me/roaroic1")   # Third tutorial link for verification
 
 # Verification (Must Fill All Veriables. Else You Got Error
-SHORTENER_API = environ.get("SHORTENER_API", "67088d44ce41560a1129a9ed28bf7793bc15fbed") # Shortener API key
-SHORTENER_WEBSITE = environ.get("SHORTENER_WEBSITE", "linkpays.in") # Shortener website
+SHORTENER_API = environ.get("SHORTENER_API", "1e72bd1274625811043cb1d1ca2dbcbe77e9fdd2") # Shortener API key
+SHORTENER_WEBSITE = environ.get("SHORTENER_WEBSITE", "vplink.in") # Shortener website
 
-SHORTENER_API2 = environ.get("SHORTENER_API2", "67088d44ce41560a1129a9ed28bf7793bc15fbed")  # Shortener API key for second website
-SHORTENER_WEBSITE2 = environ.get("SHORTENER_WEBSITE2", "linkpays.in") # Shortener website for second website
+SHORTENER_API2 = environ.get("SHORTENER_API2", "1e72bd1274625811043cb1d1ca2dbcbe77e9fdd2")  # Shortener API key for second website
+SHORTENER_WEBSITE2 = environ.get("SHORTENER_WEBSITE2", "vplink.in") # Shortener website for second website
 
-SHORTENER_API3 = environ.get("SHORTENER_API3", "67088d44ce41560a1129a9ed28bf7793bc15fbed")  
-SHORTENER_WEBSITE3 = environ.get("SHORTENER_WEBSITE3", "linkpays.in") # Shortener website for third website
+SHORTENER_API3 = environ.get("SHORTENER_API3", "1e72bd1274625811043cb1d1ca2dbcbe77e9fdd2")  
+SHORTENER_WEBSITE3 = environ.get("SHORTENER_WEBSITE3", "vplink.in") # Shortener website for third website
 
 FREE_FILES_BEFORE_VERIFY = int(environ.get('FREE_FILES_BEFORE_VERIFY', "3"))  # Free files EVERY user gets per day (resets 12 AM IST) before verification starts (0 = disabled)
 SENDALL_PREMIUM_ONLY = is_enabled(environ.get('SENDALL_PREMIUM_ONLY', "True"), True)  # True = 'Send All' button only for Premium users (admins always allowed)
