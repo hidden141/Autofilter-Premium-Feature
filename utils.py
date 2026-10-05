@@ -384,10 +384,14 @@ async def get_shortlink(link, grp_id, is_second_shortener=False, is_third_shorte
             api, site = settings['api'], settings['shortner']
     shortzy = Shortzy(api, site)
     try:
-        link = await shortzy.convert(link)
+        return await shortzy.convert(link)
     except Exception as e:
-        link = await shortzy.get_quick_link(link)
-    return link
+        logger.warning(f"Shortzy convert failed ({site}): {e!r}, trying quick link")
+    try:
+        return await shortzy.get_quick_link(link)
+    except Exception as e:
+        logger.error(f"Shortener {site} failed completely: {e!r}")
+        raise
 
 async def get_settings(group_id):
     settings = temp.SETTINGS.get(group_id)
