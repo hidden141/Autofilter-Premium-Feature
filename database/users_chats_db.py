@@ -303,8 +303,10 @@ class Database:
                 return second_time < pastDate
         return False
    
-    async def create_verify_id(self, user_id: int, hash):
-        res = {"user_id": user_id, "hash":hash, "verified":False}
+    async def create_verify_id(self, user_id: int, hash, grp_id: int = 0, *_ignored):
+        # grp_id is stored so the verification link still works after a bot restart
+        res = {"user_id": int(user_id), "hash": hash, "grp_id": int(grp_id or 0), "verified": False,
+               "created_at": self._utcnow()}
         return await self.verify_id.insert_one(res)
 
     async def get_verify_id_info(self, user_id: int, hash):
@@ -453,5 +455,3 @@ class Database:
      
 db = Database(DATABASE_URI, DATABASE_NAME)    
 db2 = Database(DATABASE_URI2, DATABASE_NAME)
-
-
