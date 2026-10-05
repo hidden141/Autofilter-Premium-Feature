@@ -115,8 +115,7 @@ SHORTENER_WEBSITE2 = environ.get("SHORTENER_WEBSITE2", "linkpays.in") # Shortene
 SHORTENER_API3 = environ.get("SHORTENER_API3", "67088d44ce41560a1129a9ed28bf7793bc15fbed")  
 SHORTENER_WEBSITE3 = environ.get("SHORTENER_WEBSITE3", "linkpays.in") # Shortener website for third website
 
-FREE_FILES_BEFORE_VERIFY = int(environ.get('FREE_FILES_BEFORE_VERIFY', "5"))  # Free files EVERY user gets per day (resets 12 AM IST) before verification starts (0 = disabled)
-FREE_DAILY_LIMIT = int(environ.get('FREE_DAILY_LIMIT', "20"))  # Max files per day (resets 12 AM IST) for NON-premium users (0 = unlimited). Premium users are always unlimited
+FREE_FILES_BEFORE_VERIFY = int(environ.get('FREE_FILES_BEFORE_VERIFY', "3"))  # Free files EVERY user gets per day (resets 12 AM IST) before verification starts (0 = disabled)
 SENDALL_PREMIUM_ONLY = is_enabled(environ.get('SENDALL_PREMIUM_ONLY', "True"), True)  # True = 'Send All' button only for Premium users (admins always allowed)
 TWO_VERIFY_GAP = int(environ.get('TWO_VERIFY_GAP', "1200")) # Time gap for two-step verification in seconds (default: 20 minutes)
 THREE_VERIFY_GAP = int(environ.get('THREE_VERIFY_GAP', "54000"))    
