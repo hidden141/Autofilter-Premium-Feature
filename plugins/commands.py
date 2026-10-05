@@ -381,23 +381,6 @@ async def start(client, message):
             await m.reply_text("<b>⚠️ ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ ꜱᴇʀᴠɪᴄᴇ ɪꜱ ᴛᴇᴍᴘᴏʀᴀʀɪʟʏ ᴜɴᴀᴠᴀɪʟᴀʙʟᴇ. ᴘʟᴇᴀꜱᴇ ᴛʀʏ ᴀɢᴀɪɴ ɪɴ ᴀ ꜰᴇᴡ ᴍɪɴᴜᴛᴇꜱ.</b>", parse_mode=enums.ParseMode.HTML)
             return
 
-    # Daily file limit (non-premium only; Premium = unlimited)
-    if not is_premium and FREE_DAILY_LIMIT > 0:
-        need = len(temp.GETALL.get(file_id) or []) or 1 if data.startswith("allfiles") else 1
-        allowed, used = await db.consume_daily_files(message.from_user.id, FREE_DAILY_LIMIT, need)
-        if not allowed:
-            left = max(FREE_DAILY_LIMIT - used, 0)
-            lim_msg = await m.reply_text(
-                f"<b>🚫 ᴅᴀɪʟʏ ʟɪᴍɪᴛ ʀᴇᴀᴄʜᴇᴅ</b>\n\n"
-                f"ꜰʀᴇᴇ ᴜꜱᴇʀꜱ ᴄᴀɴ ɢᴇᴛ <b>{FREE_DAILY_LIMIT}</b> ꜰɪʟᴇꜱ ᴘᴇʀ ᴅᴀʏ (ʟᴇꜰᴛ ᴛᴏᴅᴀʏ: <b>{left}</b>).\n"
-                f"ʟɪᴍɪᴛ ʀᴇꜱᴇᴛꜱ ᴀᴛ 12 AM IST.\n\n"
-                f"👑 <b>ᴘʀᴇᴍɪᴜᴍ = ᴜɴʟɪᴍɪᴛᴇᴅ ꜰɪʟᴇꜱ ᴅᴀɪʟʏ.</b> ᴄʜᴇᴄᴋ /plan",
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🚀 Buy Premium 🚀", callback_data="premium_info")]]),
-                parse_mode=enums.ParseMode.HTML
-            )
-            asyncio.create_task(_delete_later(lim_msg, 120))
-            return
-
     # Now, await the file details task
     files_ = await file_details_task
 
