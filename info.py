@@ -19,7 +19,7 @@ def is_enabled(value, default):
 # Bot Information Configuration
 # ============================
 SESSION = environ.get('SESSION', 'royal_search')   # Session name for the bot
-API_ID = int(environ.get('API_ID', '')) # API ID from my.telegram.org
+API_ID = int(environ.get('API_ID', '0') or 0) # API ID from my.telegram.org
 API_HASH = environ.get('API_HASH', '')  # API Hash from my.telegram.org
 BOT_TOKEN = environ.get('BOT_TOKEN', "")    # Bot token from @BotFather
 
@@ -116,6 +116,7 @@ SHORTENER_API3 = environ.get("SHORTENER_API3", "1e72bd1274625811043cb1d1ca2dbcbe
 SHORTENER_WEBSITE3 = environ.get("SHORTENER_WEBSITE3", "vplink.in") # Shortener website for third website
 
 FREE_FILES_BEFORE_VERIFY = int(environ.get('FREE_FILES_BEFORE_VERIFY', "3"))  # Free files EVERY user gets per day (resets 12 AM IST) before verification starts (0 = disabled)
+FREE_DAILY_LIMIT = int(environ.get('FREE_DAILY_LIMIT', "10"))  # Max files per day (resets 12 AM IST) for NON-premium users (0 = unlimited). Premium users are always unlimited
 SENDALL_PREMIUM_ONLY = is_enabled(environ.get('SENDALL_PREMIUM_ONLY', "True"), True)  # True = 'Send All' button only for Premium users (admins always allowed)
 TWO_VERIFY_GAP = int(environ.get('TWO_VERIFY_GAP', "1200")) # Time gap for two-step verification in seconds (default: 20 minutes)
 THREE_VERIFY_GAP = int(environ.get('THREE_VERIFY_GAP', "54000"))    
@@ -221,22 +222,16 @@ if getenv('FQDN'):
     FQDN = str(getenv('FQDN'))
 elif ON_RENDER and getenv('RENDER_EXTERNAL_HOSTNAME'):
     FQDN = str(getenv('RENDER_EXTERNAL_HOSTNAME'))
-elif ON_HEROKU:
+elif ON_HEROKU and APP_NAME:
     FQDN = APP_NAME + '.herokuapp.com'
 else:
     FQDN = BIND_ADRESS
-URL = "https://{}/".format(FQDN) if ON_HEROKU or NO_PORT else "https://{}/".format(FQDN, PORT)
 SLEEP_THRESHOLD = int(environ.get('SLEEP_THRESHOLD', '60'))
 WORKERS = int(environ.get('WORKERS', '4'))
 SESSION_NAME = str(environ.get('SESSION_NAME', 'dreamXBotz'))
 MULTI_CLIENT = False
 name = str(environ.get('name', 'DREAMXBOTZ'))
 PING_INTERVAL = int(environ.get("PING_INTERVAL", "600"))  # 10 minutes (Render free sleeps after 15 min idle)
-if 'DYNO' in environ:
-    ON_HEROKU = True
-    APP_NAME = str(getenv('APP_NAME'))
-else:
-    ON_HEROKU = False
 HAS_SSL = is_enabled(str(getenv('HAS_SSL', True)), True)
 if HAS_SSL:
     URL = "https://{}/".format(FQDN)
