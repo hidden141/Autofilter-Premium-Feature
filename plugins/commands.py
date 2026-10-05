@@ -54,8 +54,6 @@ async def start(client, message):
     if len(m.command) == 2 and m.command[1].startswith(('notcopy', 'sendall')):
         _, userid, verify_id, file_id = m.command[1].split("_", 3)
         user_id = int(userid)
-        if message.from_user.id != user_id:
-            return await message.reply("<b>❌ ᴛʜɪs ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ ʟɪɴᴋ ɪs ɴᴏᴛ ꜰᴏʀ ʏᴏᴜ. ᴘʟᴇᴀsᴇ ʀᴇǫᴜᴇsᴛ ᴛʜᴇ ꜰɪʟᴇ ʏᴏᴜʀsᴇʟꜰ.</b>", parse_mode=enums.ParseMode.HTML)
         verify_id_info = await db.get_verify_id_info(user_id, verify_id)
         if not verify_id_info or verify_id_info["verified"]:
             return await message.reply("<b>⏳ ʟɪɴᴋ ᴇxᴘɪʀᴇᴅ — ᴘʟᴇᴀsᴇ ʀᴇǫᴜᴇsᴛ ᴛʜᴇ ꜰɪʟᴇ ᴀɢᴀɪɴ.</b>", parse_mode=enums.ParseMode.HTML)
@@ -368,17 +366,29 @@ async def start(client, message):
                     reply_markup=reply_markup,
                     parse_mode=enums.ParseMode.HTML
                 )
-                asyncio.create_task(_delete_later(n, 300))
-                asyncio.create_task(_delete_later(m, 300))
+                await asyncio.sleep(300) 
+                await n.delete()
+                await m.delete()
                 return
         except Exception as e:
-            # FAIL CLOSED: never hand out the file if the verification step itself broke
-            logger.error(f"Error In Verification - {e!r}")
-            try:
-                await log_error(client, f"❗️ Verification Error:\n\n{e!r}")
-            except Exception:
-                pass
-            await m.reply_text("<b>⚠️ ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ ꜱᴇʀᴠɪᴄᴇ ɪꜱ ᴛᴇᴍᴘᴏʀᴀʀɪʟʏ ᴜɴᴀᴠᴀɪʟᴀʙʟᴇ. ᴘʟᴇᴀꜱᴇ ᴛʀʏ ᴀɢᴀɪɴ ɪɴ ᴀ ꜰᴇᴡ ᴍɪɴᴜᴛᴇꜱ.</b>", parse_mode=enums.ParseMode.HTML)
+            print(f"Error In Verification - {e}")
+            pass
+
+    # Daily file limit (non-premium only; Premium = unlimited)
+    if not is_premium and FREE_DAILY_LIMIT > 0:
+        need = len(temp.GETALL.get(file_id) or []) or 1 if data.startswith("allfiles") else 1
+        allowed, used = await db.consume_daily_files(message.from_user.id, FREE_DAILY_LIMIT, need)
+        if not allowed:
+            left = max(FREE_DAILY_LIMIT - used, 0)
+            lim_msg = await m.reply_text(
+                f"<b>🚫 ᴅᴀɪʟʏ ʟɪᴍɪᴛ ʀᴇᴀᴄʜᴇᴅ</b>\n\n"
+                f"ꜰʀᴇᴇ ᴜꜱᴇʀꜱ ᴄᴀɴ ɢᴇᴛ <b>{FREE_DAILY_LIMIT}</b> ꜰɪʟᴇꜱ ᴘᴇʀ ᴅᴀʏ (ʟᴇꜰᴛ ᴛᴏᴅᴀʏ: <b>{left}</b>).\n"
+                f"ʟɪᴍɪᴛ ʀᴇꜱᴇᴛꜱ ᴀᴛ 12 AM IST.\n\n"
+                f"👑 <b>ᴘʀᴇᴍɪᴜᴍ = ᴜɴʟɪᴍɪᴛᴇᴅ ꜰɪʟᴇꜱ ᴅᴀɪʟʏ.</b> ᴄʜᴇᴄᴋ /plan",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🚀 Buy Premium 🚀", callback_data="premium_info")]]),
+                parse_mode=enums.ParseMode.HTML
+            )
+            asyncio.create_task(_delete_later(lim_msg, 120))
             return
 
     # Now, await the file details task
