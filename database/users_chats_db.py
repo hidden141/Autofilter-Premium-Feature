@@ -322,7 +322,7 @@ class Database:
         today = datetime.datetime.now(pytz.timezone('Asia/Kolkata')).strftime('%Y-%m-%d')
         doc = await self.daily.find_one({'_id': user_id})
         if not doc or doc.get('date') != today:
-            doc = {'_id': user_id, 'date': today, 'free_used': 0, 'sent': 0}
+            doc = {'_id': user_id, 'date': today, 'free_used': 0}
             await self.daily.replace_one({'_id': user_id}, doc, upsert=True)
         return doc
 
@@ -334,17 +334,6 @@ class Database:
             return False, used
         await self.daily.update_one({'_id': user_id}, {'$inc': {'free_used': 1}})
         return True, used + 1
-
-    async def consume_daily_files(self, user_id, limit, amount=1):
-        """Daily cap for non-premium users. Returns (allowed, used_today). limit <= 0 means unlimited."""
-        if limit <= 0:
-            return True, 0
-        doc = await self._daily_doc(user_id)
-        used = doc.get('sent', 0)
-        if used + amount > limit:
-            return False, used
-        await self.daily.update_one({'_id': user_id}, {'$inc': {'sent': amount}})
-        return True, used + amount
 
     async def has_premium_access(self, user_id):
         user_data = await self.get_user(user_id)
@@ -455,3 +444,5 @@ class Database:
      
 db = Database(DATABASE_URI, DATABASE_NAME)    
 db2 = Database(DATABASE_URI2, DATABASE_NAME)
+
+
