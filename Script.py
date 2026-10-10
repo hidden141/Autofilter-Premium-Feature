@@ -168,7 +168,7 @@ Nᴀᴍᴇ - {}
 
 2) ᴛʏᴘᴇ ɴᴀᴍᴇ ᴡɪᴛʜ ʏᴇᴀʀ
 
-3) ᴍᴏᴠɪᴇ ɪs ɴᴏᴛ ᴀᴠᴀɪʟᴀʙʟᴇ ɪɴ ᴛʜᴇ ᴅᴀᴛᴀʙᴀsᴇ ʀᴇᴘᴏʀᴛ ᴛᴏ ᴀᴅᴍɪɴs</b><b><a href="https://t.me/+HwZPzMx1njs2N2Y9">{file_name}</a></b>\n\n<b>REQUEST TO: <a href="https://t.me/+HwZPzMx1njs2N2Y9">[ DISCUSSION ]</a></b>""""""
+3) ᴍᴏᴠɪᴇ ɪs ɴᴏᴛ ᴀᴠᴀɪʟᴀʙʟᴇ ɪɴ ᴛʜᴇ ᴅᴀᴛᴀʙᴀsᴇ ʀᴇᴘᴏʀᴛ ᴛᴏ ᴀᴅᴍɪɴs</b><b><a href="https://t.me/+HwZPzMx1njs2N2Y9">{file_name}</a></b>\n\n<b>REQUEST TO: <a href="https://t.me/+HwZPzMx1njs2N2Y9">[ DISCUSSION ]</a></b>"""
 
     MVE_NT_FND = NOT_FOUND_TXT = """<b>😌 ᴛʜɪꜱ ᴍᴏᴠɪᴇ ɪꜱ ɴᴏᴛ ᴀᴠᴀɪʟᴀʙʟᴇ ɪɴ ᴍʏ ᴅᴀᴛᴀʙᴀꜱᴇ.</b>
 
