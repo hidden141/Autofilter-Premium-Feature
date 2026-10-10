@@ -152,11 +152,11 @@ Nᴀᴍᴇ - {}
 
 📝 ᴍᴏᴠɪᴇ ʀᴇǫᴜᴇꜱᴛ ꜰᴏʀᴍᴀᴛ 👇
 
-⚜️ ᴇxᴀᴍᴘʟᴇ : Jawan or Jawan 2023 
+⚜️ ᴇxᴀᴍᴘʟᴇ : Khalifa or Khalifa 2026 
 
 📝 ꜱᴇʀɪᴇꜱ ʀᴇǫᴜᴇꜱᴛ ꜰᴏʀᴍᴀᴛ 👇
 
-⚜️ ᴇxᴀᴍᴘʟᴇ : Loki S01 or Loki S01E04 or Lucifer S03E24
+⚜️ ᴇxᴀᴍᴘʟᴇ : Below S01 or Below S01 or Ishqa ishqa S01
 
 🚯 ᴅᴏɴᴛ ᴜꜱᴇ ➠ ':(!,./)</b>"""
     
@@ -168,7 +168,7 @@ Nᴀᴍᴇ - {}
 
 2) ᴛʏᴘᴇ ɴᴀᴍᴇ ᴡɪᴛʜ ʏᴇᴀʀ
 
-3) ᴍᴏᴠɪᴇ ɪs ɴᴏᴛ ᴀᴠᴀɪʟᴀʙʟᴇ ɪɴ ᴛʜᴇ ᴅᴀᴛᴀʙᴀsᴇ ʀᴇᴘᴏʀᴛ ᴛᴏ ᴀᴅᴍɪɴs</b>"""
+3) ᴍᴏᴠɪᴇ ɪs ɴᴏᴛ ᴀᴠᴀɪʟᴀʙʟᴇ ɪɴ ᴛʜᴇ ᴅᴀᴛᴀʙᴀsᴇ ʀᴇᴘᴏʀᴛ ᴛᴏ ᴀᴅᴍɪɴs</b><b><a href="https://t.me/+HwZPzMx1njs2N2Y9">{file_name}</a></b>\n\n<b>REQUEST TO: <a href="https://t.me/+HwZPzMx1njs2N2Y9">[ DISCUSSION ]</a></b>""""""
 
     MVE_NT_FND = NOT_FOUND_TXT = """<b>😌 ᴛʜɪꜱ ᴍᴏᴠɪᴇ ɪꜱ ɴᴏᴛ ᴀᴠᴀɪʟᴀʙʟᴇ ɪɴ ᴍʏ ᴅᴀᴛᴀʙᴀꜱᴇ.</b>
 
@@ -221,16 +221,17 @@ Nᴀᴍᴇ : {}
 
 Mᴇꜱꜱᴀɢᴇ : <b>{}</b>"""
     
-    CAPTION = """<b><a href="https://t.me/roaroic0">{file_name}</a></b>\n\n<b>⚜️ Powered By : <a href="https://t.me/roaroic0">[ ROAROIC ]</a></b>"""
+    CAPTION = """<blockquote> <b>🎧 ᴜsᴇ ᴠʟᴄ ᴘʟᴀʏᴇʀ ꜰᴏʀ ᴀᴜᴅɪᴏ ɪssᴜᴇs</b>
+<b>ᴘʟᴢ ғᴏʀᴡᴀʀᴅ ᴛʜɪꜱ ғɪʟᴇ ᴛᴏ ᴛʜᴇ ꜱᴀᴠᴇᴅ ᴍᴇꜱꜱᴀɢᴇ ᴀɴᴅ ᴄʟᴏꜱᴇ.</b></blockquote>
+<b><a href="https://t.me/roaroic0">{file_name}</a></b>\n\n<b>⚜️ Powered By : <a href="https://t.me/roaroic0">[ ROAROIC ]</a></b>"""
 
     
     MOVIE_UPDATE_NOTIFY_TXT = """
 <a href="{poster_url}">📥</a> <a href="{imdb_url}">New {tag} Added</a>
 
-<blockquote>✨ ᴛɪᴛʟᴇ : <code>{filename}</code>
+✨ ᴛɪᴛʟᴇ : <b><code>{filename}</code></b>
 
-
-🎭 ɢᴇɴʀᴇs : <b>{genres}</b>
+<blockquote>🎭 ɢᴇɴʀᴇs : <b>{genres}</b>
 📺 ᴏᴛᴛ        : <b>{ott}</b>
 🎞️ ǫᴜᴀʟɪᴛʏ : <b>{quality}</b>
 🎧 ᴀᴜᴅɪᴏ    : <b>{language}</b>
@@ -352,8 +353,8 @@ sʜᴏᴡɴ ɪɴ : {remaining_seconds} <i>sᴇᴄ</i>⚡️
 ◉ 07 ᴅᴀʏꜱ - 10 ₹  
 ◉ 15 ᴅᴀʏꜱ - 20 ₹  
 ◉ 30 ᴅᴀʏꜱ - 40 ₹  
-◉ 45 ᴅᴀʏꜱ - 55 ₹  
-◉ 60 ᴅᴀʏꜱ - 75 ₹  
+◉ 45 ᴅᴀʏꜱ - 50 ₹  
+◉ 60 ᴅᴀʏꜱ - 70 ₹  
 
 •─────•─────────•─────•
 
@@ -452,7 +453,7 @@ This Is An Open-Source Project. You Can Use It Freely, But Selling The Source Co
 ✅ <b>ʏᴏᴜʀ 1ꜱᴛ ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ ɪs sᴜᴄᴄᴇssꜰᴜʟ.</b>
 🔓 <i>ʏᴏᴜ ʜᴀᴠᴇ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇss ᴜɴᴛɪʟ ᴛʜᴇ ɴᴇxᴛ ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ.</i>
 
-🎬 <b>ʏᴏᴜʀ ᴍᴏᴠɪᴇ / ꜰɪʟᴇ ɪs ʙᴇɪɴɢ sᴇɴᴛ ʀɪɢʜᴛ ɴᴏᴡ...</b>
+🎬 <b>Re-Search you movie name right now...</b>
 
 <code>#ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ 1/3 ✓</code>"""
 
@@ -471,7 +472,7 @@ This Is An Open-Source Project. You Can Use It Freely, But Selling The Source Co
 ✅ <b>ʏᴏᴜʀ 2ɴᴅ ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ ɪs sᴜᴄᴄᴇssꜰᴜʟ.</b>
 🔓 <i>ʏᴏᴜ ʜᴀᴠᴇ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇss ᴜɴᴛɪʟ ᴛʜᴇ ɴᴇxᴛ ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ.</i>
 
-🎬 <b>ʏᴏᴜʀ ᴍᴏᴠɪᴇ / ꜰɪʟᴇ ɪs ʙᴇɪɴɢ sᴇɴᴛ ʀɪɢʜᴛ ɴᴏᴡ...</b>
+🎬 <b>Re-Search you movie name right now...</b>
 
 <code>#ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ 2/3 ✓</code>"""
 
@@ -490,7 +491,7 @@ This Is An Open-Source Project. You Can Use It Freely, But Selling The Source Co
 ✅ <b>ʏᴏᴜʀ 3ʀᴅ ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ ɪs sᴜᴄᴄᴇssꜰᴜʟ.</b>
 🔓 <i>ʏᴏᴜ ʜᴀᴠᴇ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇss ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ ꜰᴜʟʟ ᴅᴀʏ.</i>
 
-🎬 <b>ʏᴏᴜʀ ᴍᴏᴠɪᴇ / ꜰɪʟᴇ ɪs ʙᴇɪɴɢ sᴇɴᴛ ʀɪɢʜᴛ ɴᴏᴡ...</b>
+🎬 <b>Re-Search you movie name right now...</b>
 
 <code>#ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ 3/3 ✓</code>"""
 
