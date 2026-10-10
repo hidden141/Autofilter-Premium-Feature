@@ -91,7 +91,7 @@ LINK_PREVIEW = is_enabled(str(environ.get('LINK_PREVIEW', True)), True) # Shows 
 ABOVE_PREVIEW = is_enabled(str(environ.get('ABOVE_PREVIEW', True)), True) # Shows link preview above the text in notification msg if True else below the msg
 TMDB_API_KEY = environ.get('TMDB_API_KEY', '5f1f3a3e887a357a885c1002c0c6b676') # preffer to use your own tmdb API Key get it from https://www.themoviedb.org/settings/api
 TMDB_POSTER = is_enabled(str(environ.get('TMDB_POSTER', True)), True) # Shows TMDB poster in notification msg
-LANDSCAPE_POSTER = is_enabled(str(environ.get('LANDSCAPE_POSTER', True)), True) # Shows landscape poster in notification msg
+LANDSCAPE_POSTER = is_enabled(str(environ.get('LANDSCAPE_POSTER', False)), False) # Shows landscape poster in notification msg
 
 # ============================
 # Verification Settings
@@ -115,7 +115,7 @@ SHORTENER_WEBSITE2 = environ.get("SHORTENER_WEBSITE2", "vplink.in") # Shortener 
 SHORTENER_API3 = environ.get("SHORTENER_API3", "1e72bd1274625811043cb1d1ca2dbcbe77e9fdd2")  
 SHORTENER_WEBSITE3 = environ.get("SHORTENER_WEBSITE3", "vplink.in") # Shortener website for third website
 
-FREE_FILES_BEFORE_VERIFY = int(environ.get('FREE_FILES_BEFORE_VERIFY', "3"))  # Free files EVERY user gets per day (resets 12 AM IST) before verification starts (0 = disabled)
+FREE_FILES_BEFORE_VERIFY = int(environ.get('FREE_FILES_BEFORE_VERIFY', "5"))  # Free files EVERY user gets per day (resets 12 AM IST) before verification starts (0 = disabled)
 FREE_DAILY_LIMIT = int(environ.get('FREE_DAILY_LIMIT', "10"))  # Max files per day (resets 12 AM IST) for NON-premium users (0 = unlimited). Premium users are always unlimited
 SENDALL_PREMIUM_ONLY = is_enabled(environ.get('SENDALL_PREMIUM_ONLY', "True"), True)  # True = 'Send All' button only for Premium users (admins always allowed)
 TWO_VERIFY_GAP = int(environ.get('TWO_VERIFY_GAP', "1200")) # Time gap for two-step verification in seconds (default: 20 minutes)
