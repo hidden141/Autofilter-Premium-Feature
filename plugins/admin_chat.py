@@ -5,6 +5,7 @@ Admin commands (private chat with the bot, ADMINS only):
   /chat <user_id>        - open a live chat session with that user
   /endchat               - close the current session
   /msg <user_id> <text>  - send a one-off text message to a user
+  /msg all <text>        - send a text message to ALL users (or reply to any message with /msg all)
 
 While a session is open:
   * everything the admin sends (text, media, ...) is delivered to the user
@@ -14,6 +15,7 @@ While a session is open:
 
 Sessions are kept in memory and are cleared when the bot restarts.
 """
+import asyncio
 import logging
 from pyrogram import Client, filters
 from pyrogram.errors import (
@@ -103,12 +105,66 @@ async def end_admin_chat_cb(bot, query):
         await query.message.reply_text(f"<b>✅ Chat with <code>{user_id}</code> closed.</b>")
 
 
+_msg_all_lock = asyncio.Lock()
+
+
+async def _msg_all(bot, message, text):
+    """/msg all <text>  or  reply to a message with /msg all  -> send to every user."""
+    src = message.reply_to_message
+    if not src and not text:
+        return await message.reply_text(
+            "<b>Usage:</b> <code>/msg all your message</code>\n"
+            "or reply to a message with <code>/msg all</code>"
+        )
+    if _msg_all_lock.locked():
+        return await message.reply_text("<b>⚠️ Another /msg all is already running. Please wait.</b>")
+    async with _msg_all_lock:
+        status = await message.reply_text("<b>📤 Sending to all users...</b>")
+        success = blocked = failed = 0
+        try:
+            async for user in await db.get_all_users():
+                uid = int(user["id"])
+                try:
+                    try:
+                        if src:
+                            await src.copy(uid)
+                        else:
+                            await bot.send_message(uid, text)
+                    except FloodWait as e:
+                        await asyncio.sleep(e.value + 1)
+                        if src:
+                            await src.copy(uid)
+                        else:
+                            await bot.send_message(uid, text)
+                    success += 1
+                except SEND_ERRORS:
+                    blocked += 1
+                except Exception:
+                    logger.exception("msg all failed for %s", uid)
+                    failed += 1
+                if (success + blocked + failed) % 25 == 0:
+                    await asyncio.sleep(1)  # stay under Telegram rate limits
+        except Exception:
+            logger.exception("msg all aborted")
+        await status.edit_text(
+            "<b>✅ Message to all users finished.</b>\n\n"
+            f"Delivered: <code>{success}</code>\n"
+            f"Blocked/deleted: <code>{blocked}</code>\n"
+            f"Failed: <code>{failed}</code>"
+        )
+
+
 @Client.on_message(filters.private & filters.command("msg") & filters.user(ADMINS))
 async def one_off_message(bot, message):
     parts = message.text.split(None, 2)
+    if len(parts) >= 2 and parts[1].lower() == "all":
+        return await _msg_all(bot, message, parts[2] if len(parts) > 2 else None)
     if len(parts) < 3 or not parts[1].lstrip("-").isdigit():
         return await message.reply_text(
-            "<b>Usage:</b> <code>/msg user_id your message</code>"
+            "<b>Usage:</b>\n"
+            "<code>/msg user_id your message</code>\n"
+            "<code>/msg all your message</code> (send to every user)\n"
+            "Or reply to any message with <code>/msg all</code> to send that message to everyone."
         )
     user_id, text = int(parts[1]), parts[2]
     if not await db.is_user_exist(user_id):
