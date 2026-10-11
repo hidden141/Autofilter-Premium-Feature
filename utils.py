@@ -1,4 +1,3 @@
-import feature_flags as ff
 import re
 import os
 import random
@@ -796,7 +795,7 @@ def clean_search_text(search_raw: str) -> str:
 
 async def get_cap(settings, remaining_seconds, files, query, total_results, search, offset=0):
     try:
-        if settings["imdb"] and ff.is_on("imdb_results"):
+        if settings.get("imdb", False):
             IMDB_CAP = temp.IMDB_CAP.get(query.from_user.id)
             if IMDB_CAP:
                 cap = IMDB_CAP
@@ -811,7 +810,7 @@ async def get_cap(settings, remaining_seconds, files, query, total_results, sear
                             f"</a></b>"
                         )
             else:
-                if settings["imdb"] and ff.is_on("imdb_results"):
+                if settings.get("imdb", False):
                     imdb = await get_posterx(search, file=(files[0]).file_name) if TMDB_ON_SEARCH else await get_poster(search, file=(files[0]).file_name)
                 else:
                     imdb = None
