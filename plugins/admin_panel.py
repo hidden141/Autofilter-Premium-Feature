@@ -10,8 +10,7 @@ Pages (all inline buttons, edited in place):
   📚 Commands     every admin command, grouped by category
   💬 Chat         open a two-way chat with any user (see admin_chat.py)
   🔌 Sessions     currently open chat sessions
-  ⚙️ Features     turn every bot feature ON / OFF (+ maintenance mode)
-  🎁 Invites      invite & earn stats, top inviters, reward settings
+  🎁 Invite&Earn  total invites + top inviters
 
 Note on "online": Telegram never tells a bot whether a user is really online.
 "Online" here means the user used the bot (message / button) in the last 5 minutes.
@@ -28,7 +27,6 @@ from pyrogram.types import InlineKeyboardButton as Btn, InlineKeyboardMarkup as 
 from pyrogram.errors import MessageNotModified
 
 from info import ADMINS
-import feature_flags as ff
 import invite_system
 from database.users_chats_db import db
 from database.ia_filterdb import Media, Media2
@@ -110,13 +108,11 @@ async def _safe(coro, default=0):
 
 
 def _home_kb():
-    maint = ff.is_on("maintenance")
     return Kb([
         [Btn("📊 sᴛᴀᴛs", callback_data="ap_stats"), Btn("🟢 ᴏɴʟɪɴᴇ", callback_data="ap_online_0")],
         [Btn("🕒 ʀᴇᴄᴇɴᴛ ᴜsᴇʀs", callback_data="ap_recent_0"), Btn("📚 ᴄᴏᴍᴍᴀɴᴅs", callback_data="ap_cmds")],
-        [Btn("⚙️ ꜰᴇᴀᴛᴜʀᴇs ᴏɴ/ᴏꜰꜰ", callback_data="ap_feat"), Btn("🎁 ɪɴᴠɪᴛᴇs", callback_data="ap_inv")],
         [Btn("💬 ᴄʜᴀᴛ ᴡɪᴛʜ ᴜsᴇʀ", callback_data="ap_chat"), Btn("🔌 sᴇssɪᴏɴs", callback_data="ap_sessions")],
-        [Btn(f"🛠 ᴍᴀɪɴᴛᴇɴᴀɴᴄᴇ: {'🔴 ᴏɴ' if maint else '🟢 ᴏꜰꜰ'}", callback_data="ap_maint")],
+        [Btn("🎁 ɪɴᴠɪᴛᴇ & ᴇᴀʀɴ", callback_data="ap_inv")],
         [Btn("🔄 ʀᴇꜰʀᴇsʜ", callback_data="ap_home"), Btn("❌ ᴄʟᴏsᴇ", callback_data="ap_close")],
     ])
 
@@ -151,7 +147,6 @@ async def _name_of(bot, uid: int) -> str:
 # Home                                                                         #
 # --------------------------------------------------------------------------- #
 async def _home_text() -> str:
-    await ff.ensure_loaded()
     total = await _safe(db.total_users_count())
     online = len(_online_ids())
     return (
@@ -160,8 +155,7 @@ async def _home_text() -> str:
         f"👥 <b>ᴛᴏᴛᴀʟ ᴜsᴇʀs:</b> <code>{total}</code>\n"
         f"🟢 <b>ᴏɴʟɪɴᴇ ɴᴏᴡ:</b> <code>{online}</code>\n"
         f"⏱ <b>ᴜᴘᴛɪᴍᴇ:</b> <code>{_uptime()}</code>\n"
-        + ("🛠 <b>ᴍᴀɪɴᴛᴇɴᴀɴᴄᴇ ᴍᴏᴅᴇ ɪs ᴏɴ</b> — users are blocked\n" if ff.is_on("maintenance") else "")
-        + "<b>━━━━━━━━━━━━━━━━━━</b>\n"
+        "<b>━━━━━━━━━━━━━━━━━━</b>\n"
         "<i>👇 ᴄʜᴏᴏsᴇ ᴀɴ ᴏᴘᴛɪᴏɴ</i>"
     )
 
@@ -301,8 +295,8 @@ COMMANDS = {
     "💬 ᴄʜᴀᴛ": [
         ("/chat <id>", "open two-way chat with a user"),
         ("/endchat", "close the current chat"),
-        ("(users) /refer", "invite friends & earn premium"),
         ("/panel", "open this panel"),
+        ("(users) /refer", "invite & earn page"),
         ("(users) /contact", "users write to the admin"),
     ],
     "💎 ᴘʀᴇᴍɪᴜᴍ": [
@@ -323,8 +317,6 @@ COMMANDS = {
         ("/junk_group", "clear dead groups"), ("/resetallgroup", "reset all group settings"),
     ],
     "⚙️ sʏsᴛᴇᴍ": [
-        ("/features", "turn every feature ON / OFF"),
-        ("/feature <key> on|off", "switch one feature quickly"),
         ("/stats", "bot statistics"), ("/logs", "recent errors"),
         ("/restart", "restart the bot"), ("/commands", "update bot command menu"),
         ("/admin_cmd", "old admin command list"), ("/verify", "verification on/off (group)"),
@@ -358,171 +350,26 @@ async def cb_cat(bot, query):
                                   Btn("🏠 ʜᴏᴍᴇ", callback_data="ap_home")]]))
 
 
-
 # --------------------------------------------------------------------------- #
-# ⚙️ Features  (turn everything ON / OFF)                                      #
+# 🎁 Invite & Earn (admin view)                                                #
 # --------------------------------------------------------------------------- #
-_CATS = list(ff.CATEGORIES)
-
-
-def _feat_home():
-    rows = []
-    for i, cat in enumerate(_CATS):
-        on, total = ff.category_counts(cat)
-        rows.append([Btn(f"{ff.CATEGORIES[cat]}  ({on}/{total} ᴏɴ)", callback_data=f"ap_fc_{i}")])
-    text = (
-        "<b>⚙️ ꜰᴇᴀᴛᴜʀᴇ sᴡɪᴛᴄʜᴇs</b>\n"
-        "<b>━━━━━━━━━━━━━━━━━━</b>\n"
-        "Turn any feature <b>ON 🟢 / OFF 🔴</b> instantly — no restart needed.\n"
-        "Admins are never blocked.\n\n"
-        "<i>👇 Pick a category</i>"
-    )
-    return text, _back_kb(rows)
-
-
-def _cat_page(ci: int):
-    cat = _CATS[ci]
-    rows, lines = [], []
-    for idx, f in ff.by_category(cat):
-        key, label, desc = f[0], f[2], f[4]
-        mark = "🟢" if ff.is_on(key) else "🔴"
-        rows.append([Btn(f"{mark} {label}", callback_data=f"ap_ft_{idx}")])
-        lines.append(f"{mark} <b>{label}</b>\n    <i>{desc}</i>")
-    rows.append([Btn("✅ ᴀʟʟ ᴏɴ", callback_data=f"ap_fa_{ci}_1"),
-                 Btn("❌ ᴀʟʟ ᴏꜰꜰ", callback_data=f"ap_fa_{ci}_0")])
-    rows.append([Btn("⬅️ ᴄᴀᴛᴇɢᴏʀɪᴇs", callback_data="ap_feat"), Btn("🏠 ʜᴏᴍᴇ", callback_data="ap_home")])
-    text = f"<b>{ff.CATEGORIES[cat]}</b>\n<b>━━━━━━━━━━━━━━━━━━</b>\n" + "\n".join(lines) + \
-           "\n\n<i>Tap a feature to switch it.</i>"
-    return text, Kb(rows)
-
-
-@Client.on_callback_query(filters.regex(r"^ap_feat$") & filters.user(ADMINS))
-async def cb_feat(bot, query):
-    await query.answer()
-    await ff.ensure_loaded()
-    text, kb = _feat_home()
-    await _edit(query, text, kb)
-
-
-@Client.on_callback_query(filters.regex(r"^ap_fc_(\d+)$") & filters.user(ADMINS))
-async def cb_feat_cat(bot, query):
-    await query.answer()
-    await ff.ensure_loaded()
-    ci = int(query.matches[0].group(1))
-    if ci >= len(_CATS):
-        return
-    text, kb = _cat_page(ci)
-    await _edit(query, text, kb)
-
-
-@Client.on_callback_query(filters.regex(r"^ap_ft_(\d+)$") & filters.user(ADMINS))
-async def cb_feat_toggle(bot, query):
-    await ff.ensure_loaded()
-    idx = int(query.matches[0].group(1))
-    if idx >= len(ff.FEATURES):
-        return await query.answer()
-    key, cat, label = ff.FEATURES[idx][0], ff.FEATURES[idx][1], ff.FEATURES[idx][2]
-    new = await ff.toggle(key)
-    await query.answer(f"{label}: {'ON 🟢' if new else 'OFF 🔴'}")
-    text, kb = _cat_page(_CATS.index(cat))
-    await _edit(query, text, kb)
-
-
-@Client.on_callback_query(filters.regex(r"^ap_fa_(\d+)_([01])$") & filters.user(ADMINS))
-async def cb_feat_all(bot, query):
-    await ff.ensure_loaded()
-    ci, val = int(query.matches[0].group(1)), query.matches[0].group(2) == "1"
-    if ci >= len(_CATS):
-        return await query.answer()
-    await ff.set_category(_CATS[ci], val)
-    await query.answer("All ON 🟢" if val else "All OFF 🔴")
-    text, kb = _cat_page(ci)
-    await _edit(query, text, kb)
-
-
-@Client.on_callback_query(filters.regex(r"^ap_maint$") & filters.user(ADMINS))
-async def cb_maint(bot, query):
-    await ff.ensure_loaded()
-    new = await ff.toggle("maintenance")
-    await query.answer("Maintenance ON — users are blocked 🔴" if new else "Maintenance OFF — bot is live 🟢",
-                       show_alert=new)
-    await _edit(query, await _home_text(), _home_kb())
-
-
-@Client.on_message(filters.private & filters.command("features") & filters.user(ADMINS))
-async def cmd_features(bot, message):
-    await ff.ensure_loaded()
-    text, kb = _feat_home()
-    await message.reply_text(text, reply_markup=kb, parse_mode=HTML)
-
-
-@Client.on_message(filters.private & filters.command("feature") & filters.user(ADMINS))
-async def cmd_feature(bot, message):
-    await ff.ensure_loaded()
-    args = message.command[1:]
-    if len(args) != 2 or args[1].lower() not in ("on", "off") or args[0] not in ff.DEFAULTS:
-        keys = "\n".join(f"• <code>{k}</code> — {'🟢' if ff.is_on(k) else '🔴'}" for k in list(ff.KEYS) + ["maintenance"])
-        return await message.reply_text(
-            "<b>Usage:</b> <code>/feature key on|off</code>\n\n<b>Keys:</b>\n" + keys, parse_mode=HTML)
-    await ff.set_flag(args[0], args[1].lower() == "on")
-    await message.reply_text(
-        f"<b>✅ {ff.LABELS.get(args[0], args[0])}: {'ON 🟢' if args[1].lower() == 'on' else 'OFF 🔴'}</b>",
-        parse_mode=HTML)
-
-
-# --------------------------------------------------------------------------- #
-# 🎁 Invites (admin view + reward settings)                                    #
-# --------------------------------------------------------------------------- #
-async def _inv_page():
-    await ff.ensure_loaded()
-    total = await _safe(invite_system.total_invites())
-    top = await _safe(invite_system.top_inviters(10), default=[])
-    on = ff.is_on("referral")
-    lines = []
-    for i, (uid, n) in enumerate(top, 1):
-        lines.append(f"{i}. <a href='tg://user?id={uid}'>{await _safe(invite_system._name_of(uid), 'User')}</a>"
-                     f" — <code>{uid}</code> — <b>{n}</b>")
-    body = "\n".join(lines) if lines else "<i>No invites yet.</i>"
-    text = (
-        "<b>🎁 ɪɴᴠɪᴛᴇ sʏsᴛᴇᴍ</b>\n"
-        "<b>━━━━━━━━━━━━━━━━━━</b>\n"
-        f"🔘 <b>ꜱᴛᴀᴛᴜs:</b> {'🟢 ON' if on else '🔴 OFF'}\n"
-        f"👥 <b>ᴛᴏᴛᴀʟ ɪɴᴠɪᴛᴇs:</b> <code>{total}</code>\n"
-        "<b>━━━━━━━━━━━━━━━━━━</b>\n"
-        f"<b>🏆 ᴛᴏᴘ ɪɴᴠɪᴛᴇʀs</b>\n{body}"
-    )
-    rows = [[Btn(f"{'🟢' if on else '🔴'} ɪɴᴠɪᴛᴇ & ᴇᴀʀɴ: {'ON' if on else 'OFF'}", callback_data="ap_invtog")]]
-    for key, (default, lo, hi, step, label) in ff.CFG_DEFAULTS.items():
-        rows.append([
-            Btn("➖", callback_data=f"ap_cfg_{key}_-1"),
-            Btn(f"{label}: {ff.get_cfg(key)}", callback_data="ap_noop"),
-            Btn("➕", callback_data=f"ap_cfg_{key}_1"),
-        ])
-    rows.append([Btn("🔄 ʀᴇꜰʀᴇsʜ", callback_data="ap_inv")])
-    return text, _back_kb(rows)
-
-
 @Client.on_callback_query(filters.regex(r"^ap_inv$") & filters.user(ADMINS))
 async def cb_inv(bot, query):
     await query.answer()
-    text, kb = await _inv_page()
-    await _edit(query, text, kb)
-
-
-@Client.on_callback_query(filters.regex(r"^ap_invtog$") & filters.user(ADMINS))
-async def cb_inv_toggle(bot, query):
-    await ff.ensure_loaded()
-    new = await ff.toggle("referral")
-    await query.answer(f"Invite & Earn: {'ON 🟢' if new else 'OFF 🔴'}")
-    text, kb = await _inv_page()
-    await _edit(query, text, kb)
-
-
-@Client.on_callback_query(filters.regex(r"^ap_cfg_(invite_points|invite_target|invite_days)_(-?1)$") & filters.user(ADMINS))
-async def cb_inv_cfg(bot, query):
-    await ff.ensure_loaded()
-    key, direction = query.matches[0].group(1), int(query.matches[0].group(2))
-    value = await ff.adjust_cfg(key, direction)
-    await query.answer(f"{ff.CFG_DEFAULTS[key][4]}: {value}")
-    text, kb = await _inv_page()
-    await _edit(query, text, kb)
+    total = await _safe(invite_system.total_invites())
+    top = await _safe(invite_system.top_inviters(10), default=[])
+    lines = []
+    for i, (uid, n) in enumerate(top, 1):
+        name = await _safe(invite_system._name_of(uid), "User")
+        lines.append(f"{i}. <a href='tg://user?id={uid}'>{name}</a> — <code>{uid}</code> — <b>{n}</b>")
+    body = "\n".join(lines) if lines else "<i>No invites yet.</i>"
+    text = (
+        "<b>🎁 ɪɴᴠɪᴛᴇ & ᴇᴀʀɴ</b>\n<b>━━━━━━━━━━━━━━━━━━</b>\n"
+        f"👥 <b>ᴛᴏᴛᴀʟ ɪɴᴠɪᴛᴇs:</b> <code>{total}</code>\n"
+        f"➕ <b>ᴘᴏɪɴᴛs ᴘᴇʀ ꜰʀɪᴇɴᴅ:</b> <code>{invite_system.INVITE_POINTS}</code>\n"
+        f"👑 <b>ʀᴇᴡᴀʀᴅ:</b> <code>{invite_system.INVITE_TARGET}</code> ᴘᴏɪɴᴛs = "
+        f"<code>{invite_system.INVITE_DAYS}</code> ᴅᴀʏs ᴘʀᴇᴍɪᴜᴍ\n"
+        "<b>━━━━━━━━━━━━━━━━━━</b>\n"
+        f"<b>🏆 ᴛᴏᴘ ɪɴᴠɪᴛᴇʀs</b>\n{body}"
+    )
+    await _edit(query, text, _back_kb([[Btn("🔄 ʀᴇꜰʀᴇsʜ", callback_data="ap_inv")]]))
