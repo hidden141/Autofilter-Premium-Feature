@@ -11,13 +11,13 @@ How it works
 import asyncio
 import datetime
 import logging
+import os
 from urllib.parse import quote
 
 from pyrogram import enums
 from pyrogram.types import InlineKeyboardButton as Btn, InlineKeyboardMarkup as Kb
 from pymongo.errors import DuplicateKeyError
 
-import feature_flags as ff
 from database.refer import referdb
 from database.users_chats_db import db
 from info import ADMINS, PREMIUM_LOGS
@@ -25,6 +25,11 @@ from info import ADMINS, PREMIUM_LOGS
 logger = logging.getLogger(__name__)
 HTML = enums.ParseMode.HTML
 _index_ready = False
+
+# Reward settings (change them with environment variables on Render if you want)
+INVITE_POINTS = int(os.environ.get("INVITE_POINTS", "10"))    # points for each new friend
+INVITE_TARGET = int(os.environ.get("INVITE_TARGET", "100"))   # points needed for the reward
+INVITE_DAYS = int(os.environ.get("INVITE_DAYS", "30"))        # free premium days as reward
 
 
 def _col():
@@ -91,9 +96,6 @@ async def _set_points(uid: int, pts: int):
 # --------------------------------------------------------------------------- #
 async def register_invite(client, message, referrer_id: int, is_new_user: bool):
     """Returns nothing; talks to the user itself."""
-    await ff.ensure_loaded()
-    if not ff.is_on("referral"):
-        return
     me = message.from_user
 
     if referrer_id == me.id:
@@ -122,9 +124,7 @@ async def register_invite(client, message, referrer_id: int, is_new_user: bool):
     except DuplicateKeyError:
         return await message.reply_text("<b>ℹ️ ʏᴏᴜ ʜᴀᴠᴇ ᴀʟʀᴇᴀᴅʏ ʙᴇᴇɴ ɪɴᴠɪᴛᴇᴅ ʙᴇꜰᴏʀᴇ.</b>", parse_mode=HTML)
 
-    per = ff.get_cfg("invite_points")
-    target = ff.get_cfg("invite_target")
-    days = ff.get_cfg("invite_days")
+    per, target, days = INVITE_POINTS, INVITE_TARGET, INVITE_DAYS
     total = await _points(referrer_id) + per
 
     rewarded = False
@@ -178,11 +178,8 @@ async def _grant_premium(user_id: int, days: int):
 # --------------------------------------------------------------------------- #
 async def invite_page(bot, user):
     """(text, keyboard) of the personal invite page."""
-    await ff.ensure_loaded()
     link = link_for(bot.me.username, user.id)
-    per = ff.get_cfg("invite_points")
-    target = ff.get_cfg("invite_target")
-    days = ff.get_cfg("invite_days")
+    per, target, days = INVITE_POINTS, INVITE_TARGET, INVITE_DAYS
     invited = await invited_count(user.id)
     pts = await _points(user.id)
     need = max(target - pts, 0)
