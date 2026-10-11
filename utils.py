@@ -374,24 +374,29 @@ async def search_gagala(text):
     return [title.getText() for title in titles]
 
 async def get_shortlink(link, grp_id, is_second_shortener=False, is_third_shortener=False):
-    settings = await get_settings(grp_id)
-    if is_third_shortener:             
-        api, site = settings['api_three'], settings['shortner_three']
+    settings = await get_settings(grp_id) or {}
+    # .get() + config fallback: groups saved before the 2nd/3rd shortener existed
+    # don't have those keys, and indexing them raised KeyError -> verification dead.
+    if is_third_shortener:
+        api = settings.get('api_three') or SHORTENER_API3
+        site = settings.get('shortner_three') or SHORTENER_WEBSITE3
+    elif is_second_shortener:
+        api = settings.get('api_two') or SHORTENER_API2
+        site = settings.get('shortner_two') or SHORTENER_WEBSITE2
     else:
-        if is_second_shortener:
-            api, site = settings['api_two'], settings['shortner_two']
-        else:
-            api, site = settings['api'], settings['shortner']
+        api = settings.get('api') or SHORTENER_API
+        site = settings.get('shortner') or SHORTENER_WEBSITE
+    if not api or not site:
+        raise ValueError(f"Shortener not configured (site={site!r}, api set={bool(api)})")
     shortzy = Shortzy(api, site)
     try:
-        return await shortzy.convert(link)
+        short = await shortzy.convert(link)
     except Exception as e:
-        logger.warning(f"Shortzy convert failed ({site}): {e!r}, trying quick link")
-    try:
-        return await shortzy.get_quick_link(link)
-    except Exception as e:
-        logger.error(f"Shortener {site} failed completely: {e!r}")
-        raise
+        logging.warning(f"Shortener convert failed ({site}): {e!r}; trying quick link")
+        short = await shortzy.get_quick_link(link)
+    if not short or not str(short).startswith(("http://", "https://")):
+        raise ValueError(f"Shortener {site} returned an invalid link: {short!r}")
+    return short
 
 async def get_settings(group_id):
     settings = temp.SETTINGS.get(group_id)
@@ -795,7 +800,7 @@ def clean_search_text(search_raw: str) -> str:
 
 async def get_cap(settings, remaining_seconds, files, query, total_results, search, offset=0):
     try:
-        if settings.get("imdb", False):
+        if settings["imdb"]:
             IMDB_CAP = temp.IMDB_CAP.get(query.from_user.id)
             if IMDB_CAP:
                 cap = IMDB_CAP
@@ -810,7 +815,7 @@ async def get_cap(settings, remaining_seconds, files, query, total_results, sear
                             f"</a></b>"
                         )
             else:
-                if settings.get("imdb", False):
+                if settings["imdb"]:
                     imdb = await get_posterx(search, file=(files[0]).file_name) if TMDB_ON_SEARCH else await get_poster(search, file=(files[0]).file_name)
                 else:
                     imdb = None
