@@ -439,17 +439,25 @@ class Database:
             {'$pull': {'group_ids': group_id}}
         )
 
+    # PM search / movie update now live in feature_flags so the admin panel,
+    # /pm_search and /movie_update all control the very same switch.
     async def pm_search_status(self, bot_id):
-        return await self.get_bot_setting(bot_id, 'PM_SEARCH', PM_SEARCH)
+        import feature_flags as ff
+        await ff.ensure_loaded()
+        return ff.is_on('pm_search')
 
     async def update_pm_search_status(self, bot_id, enable):
-        await self.update_bot_setting(bot_id, 'PM_SEARCH', enable)
+        import feature_flags as ff
+        await ff.set_flag('pm_search', bool(enable))
 
     async def movie_update_status(self, bot_id):
-        return await self.get_bot_setting(bot_id, 'MOVIE_UPDATE_NOTIFICATION', MOVIE_UPDATE_NOTIFICATION)
+        import feature_flags as ff
+        await ff.ensure_loaded()
+        return ff.is_on('movie_update')
 
     async def update_movie_update_status(self, bot_id, enable):
-        await self.update_bot_setting(bot_id, 'MOVIE_UPDATE_NOTIFICATION', enable)
+        import feature_flags as ff
+        await ff.set_flag('movie_update', bool(enable))
      
 db = Database(DATABASE_URI, DATABASE_NAME)    
 db2 = Database(DATABASE_URI2, DATABASE_NAME)
