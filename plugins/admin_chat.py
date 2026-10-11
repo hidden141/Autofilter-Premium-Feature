@@ -39,6 +39,10 @@ PENDING_CONTACT: dict[int, float] = {}
 CONTACT_COOLDOWN = 30  # seconds between /contact uses
 _LAST_CONTACT: dict[int, float] = {}
 
+
+async def _contact_enabled(bot) -> bool:
+    return True
+
 SEND_ERRORS = (UserIsBlocked, InputUserDeactivated, PeerIdInvalid)
 
 
@@ -319,6 +323,8 @@ async def sessions_cb(bot, query):
 
 @Client.on_message(filters.private & filters.command("contact") & ~filters.user(ADMINS))
 async def contact_admin(bot, message):
+    if not await _contact_enabled(bot):
+        return await message.reply_text("<b>⚠️ Contacting the admin is currently disabled.</b>")
     uid = message.from_user.id
     import time
     now = time.time()
@@ -342,6 +348,8 @@ async def cancel_contact(bot, message):
 
 @Client.on_callback_query(filters.regex(r"^contact_admin_btn$") & ~filters.user(ADMINS))
 async def contact_admin_btn(bot, query):
+    if not await _contact_enabled(bot):
+        return await query.answer("Contacting the admin is currently disabled.", show_alert=True)
     import time
     uid = query.from_user.id
     now = time.time()
