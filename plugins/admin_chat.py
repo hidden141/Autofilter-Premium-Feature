@@ -32,6 +32,13 @@ ADMIN_SESSIONS: dict[int, int] = {}
 # user_id -> set(admin_id)   (reverse index so user messages are routed fast)
 USER_SESSIONS: dict[int, set[int]] = {}
 
+# admins who pressed "Chat with user" in the panel and must now send a user id
+WAITING_ID: set[int] = set()
+# users who typed /contact and whose next message goes to the admins
+PENDING_CONTACT: dict[int, float] = {}
+CONTACT_COOLDOWN = 30  # seconds between /contact uses
+_LAST_CONTACT: dict[int, float] = {}
+
 SEND_ERRORS = (UserIsBlocked, InputUserDeactivated, PeerIdInvalid)
 
 
@@ -186,6 +193,15 @@ async def one_off_message(bot, message):
 @Client.on_message(filters.private & filters.incoming & filters.user(ADMINS) & ~filters.command(
     ["chat", "endchat", "msg"]) & ~filters.regex(r"^/"), group=-1)
 async def admin_to_user(bot, message):
+    if message.from_user.id in WAITING_ID and message.text:
+        WAITING_ID.discard(message.from_user.id)
+        txt = message.text.strip()
+        if txt.lstrip("-").isdigit():
+            await _open_session(bot, message, message.from_user.id, int(txt))
+        else:
+            await message.reply_text("<b>⚠️ That is not a valid user id. Open the panel again with /panel.</b>")
+        message.stop_propagation()
+        return
     user_id = ADMIN_SESSIONS.get(message.from_user.id)
     if user_id is None:
         return  # no session: behave as normal
@@ -213,7 +229,27 @@ async def admin_to_user(bot, message):
 async def user_to_admin(bot, message):
     if not message.from_user:
         return
-    admins = USER_SESSIONS.get(message.from_user.id)
+    uid = message.from_user.id
+    if uid in PENDING_CONTACT:
+        PENDING_CONTACT.pop(uid, None)
+        delivered = 0
+        header = (f"📩 <b>New message from {_user_label(message.from_user)}</b>\n"
+                  "Tap below to open a live chat and reply.")
+        kb = InlineKeyboardMarkup([[InlineKeyboardButton("💬 ʀᴇᴘʟʏ / ᴏᴘᴇɴ ᴄʜᴀᴛ", callback_data=f"adminchat_open_{uid}")]])
+        for admin_id in ADMINS:
+            try:
+                await message.copy(admin_id)
+                await bot.send_message(admin_id, header, reply_markup=kb)
+                delivered += 1
+            except Exception:
+                logger.exception("contact forward failed for admin %s", admin_id)
+        await message.reply_text(
+            "<b>✅ ʏᴏᴜʀ ᴍᴇssᴀɢᴇ ʜᴀs ʙᴇᴇɴ sᴇɴᴛ ᴛᴏ ᴛʜᴇ ᴀᴅᴍɪɴ.\nᴘʟᴇᴀsᴇ ᴡᴀɪᴛ ꜰᴏʀ ᴀ ʀᴇᴘʟʏ 💌</b>" if delivered
+            else "<b>❌ Could not reach the admin right now. Please try again later.</b>"
+        )
+        message.stop_propagation()
+        return
+    admins = USER_SESSIONS.get(uid)
     if not admins:
         return  # not in a session: normal bot behaviour
     header = f"💬 <b>{_user_label(message.from_user)}</b>"
@@ -224,3 +260,98 @@ async def user_to_admin(bot, message):
         except Exception:
             logger.exception("user_to_admin failed for admin %s", admin_id)
     message.stop_propagation()
+
+
+# --------------------------------------------------------------------------- #
+# Panel buttons + /contact                                                     #
+# --------------------------------------------------------------------------- #
+async def _open_session(bot, message, admin_id: int, user_id: int):
+    if not await db.is_user_exist(user_id):
+        return await message.reply_text(
+            "<b>⚠️ This user has not started the bot yet, so I can't message them.</b>")
+    try:
+        label = _user_label(await bot.get_users(user_id))
+    except Exception:
+        label = f"[<code>{user_id}</code>]"
+    _open(admin_id, user_id)
+    await message.reply_text(
+        f"<b>💬 Chat opened with {label}.</b>\n\n"
+        "Everything you send now goes to the user, and their replies come here.\n"
+        "Use /endchat to stop.",
+        reply_markup=_end_kb(),
+    )
+    try:
+        await bot.send_message(user_id, "<b>💬 ᴀᴅᴍɪɴ ʜᴀs ᴊᴏɪɴᴇᴅ ᴛʜᴇ ᴄʜᴀᴛ. ʏᴏᴜ ᴄᴀɴ ʀᴇᴘʟʏ ʜᴇʀᴇ.</b>")
+    except SEND_ERRORS:
+        _close(admin_id)
+        await message.reply_text("<b>❌ User is unavailable (blocked the bot). Chat closed.</b>")
+
+
+@Client.on_callback_query(filters.regex(r"^adminchat_open_(-?\d+)$") & filters.user(ADMINS))
+async def open_chat_cb(bot, query):
+    await query.answer()
+    await _open_session(bot, query.message, query.from_user.id, int(query.matches[0].group(1)))
+
+
+@Client.on_callback_query(filters.regex(r"^ap_chat$") & filters.user(ADMINS))
+async def ask_user_id_cb(bot, query):
+    WAITING_ID.add(query.from_user.id)
+    await query.answer()
+    await query.message.reply_text(
+        "<b>💬 Send the <u>user id</u> you want to chat with.</b>\n"
+        "<i>Tip: use the 🟢 Online / 🕒 Recent pages to open a chat with one tap.</i>")
+
+
+@Client.on_callback_query(filters.regex(r"^ap_sessions$") & filters.user(ADMINS))
+async def sessions_cb(bot, query):
+    await query.answer()
+    if not ADMIN_SESSIONS:
+        text = "<b>🔌 Active chats</b>\n\n<i>No open chat sessions.</i>"
+    else:
+        text = "<b>🔌 Active chats</b>\n\n" + "\n".join(
+            f"• admin <code>{a}</code> ⇄ user <code>{u}</code>" for a, u in ADMIN_SESSIONS.items())
+    kb = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ ʙᴀᴄᴋ", callback_data="ap_home")]])
+    try:
+        await query.message.edit_text(text, reply_markup=kb)
+    except Exception:
+        pass
+
+
+@Client.on_message(filters.private & filters.command("contact") & ~filters.user(ADMINS))
+async def contact_admin(bot, message):
+    uid = message.from_user.id
+    import time
+    now = time.time()
+    if now - _LAST_CONTACT.get(uid, 0) < CONTACT_COOLDOWN:
+        return await message.reply_text("<b>⏳ Please wait a few seconds before using /contact again.</b>")
+    _LAST_CONTACT[uid] = now
+    PENDING_CONTACT[uid] = now
+    await message.reply_text(
+        "<b>📩 ᴡʀɪᴛᴇ ʏᴏᴜʀ ᴍᴇssᴀɢᴇ ɴᴏᴡ</b>\n\n"
+        "Send ONE message (text, photo, video, file...) and it will reach the admin directly.\n"
+        "Send any command (like /start) to cancel."
+    )
+
+
+@Client.on_message(filters.private & filters.incoming & ~filters.user(ADMINS) & filters.regex(r"^/")
+                   & ~filters.command("contact"), group=-2)
+async def cancel_contact(bot, message):
+    if message.from_user:
+        PENDING_CONTACT.pop(message.from_user.id, None)
+
+
+@Client.on_callback_query(filters.regex(r"^contact_admin_btn$") & ~filters.user(ADMINS))
+async def contact_admin_btn(bot, query):
+    import time
+    uid = query.from_user.id
+    now = time.time()
+    if now - _LAST_CONTACT.get(uid, 0) < CONTACT_COOLDOWN:
+        return await query.answer("Please wait a few seconds.", show_alert=True)
+    _LAST_CONTACT[uid] = now
+    PENDING_CONTACT[uid] = now
+    await query.answer()
+    await query.message.reply_text(
+        "<b>📩 ᴡʀɪᴛᴇ ʏᴏᴜʀ ᴍᴇssᴀɢᴇ ɴᴏᴡ</b>\n\n"
+        "Send ONE message (text, photo, video, file...) and it will reach the admin directly.\n"
+        "Send any command (like /start) to cancel."
+    )
