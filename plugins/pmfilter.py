@@ -1,4 +1,3 @@
-import feature_flags as ff
 from utils import get_size, is_subscribed, is_req_subscribed, group_setting_buttons, get_poster, get_posterx, temp, get_settings, save_group_settings, get_cap, imdb, is_check_admin, extract_request_content, log_error, clean_filename, generate_season_variations, clean_search_text
 import tracemalloc
 from fuzzywuzzy import process
@@ -30,7 +29,7 @@ async def _user_is_premium(user_id) -> bool:
 def _sendall_btn(key, is_prem: bool):
     """'Send All' button. Shows a lock for non-premium users when SENDALL_PREMIUM_ONLY is on."""
     label = "📦 Sᴇɴᴅ Aʟʟ"
-    if ff.is_on("sendall_premium_only") and not is_prem:
+    if SENDALL_PREMIUM_ONLY and not is_prem:
         label = "🔒 Sᴇɴᴅ Aʟʟ"
     return InlineKeyboardButton(label, callback_data=f"sendfiles#{key}")
 
@@ -67,7 +66,7 @@ SPELL_CHECK = {}
 
 @Client.on_message(filters.group & filters.text & filters.incoming)
 async def give_filter(client, message):
-    if ff.is_on("reactions"):
+    if EMOJI_MODE:
         try:
             await message.react(emoji=random.choice(REACTIONS), big=True)
         except Exception:
@@ -107,7 +106,7 @@ async def pm_text(bot, message):
     content = message.text
     user = message.from_user.first_name
     user_id = message.from_user.id
-    if ff.is_on("reactions"):
+    if EMOJI_MODE:
         try:
             await message.react(emoji=random.choice(REACTIONS), big=True)
         except Exception:
@@ -143,7 +142,7 @@ async def pm_text(bot, message):
 
 @Client.on_callback_query(filters.regex(r"^reffff"))
 async def refercall(bot, query):
-    # old button on previously sent messages -> new Invite & Earn page
+    # old button on previously sent messages -> Invite & Earn page
     import invite_system
     text, kb = await invite_system.invite_page(bot, query.from_user)
     await invite_system.edit_or_reply(query, text, kb)
@@ -327,7 +326,7 @@ async def next_page(bot, query):
         dreamx_title = clean_search_text(search)
         cap = None
         try:
-            if settings['imdb'] and ff.is_on("imdb_results"):
+            if settings['imdb']:
                 cap = await get_cap(settings, remaining_seconds, files, query, total, dreamx_title, offset)
                 if query.message.caption:
                     try:
@@ -891,7 +890,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
     elif query.data.startswith("sendfiles"):
         clicked = query.from_user.id
         ident, key = query.data.split("#")
-        if ff.is_on("sendall_premium_only") and clicked not in ADMINS and not await db.has_premium_access(clicked):
+        if SENDALL_PREMIUM_ONLY and clicked not in ADMINS and not await db.has_premium_access(clicked):
             await query.answer("🔒 Send All is a Premium feature!\n\nBuy Premium to get all files at once. Check /plan", show_alert=True)
             return
         settings = await get_settings(query.message.chat.id)
@@ -941,9 +940,9 @@ async def cb_handler(client: Client, query: CallbackQuery):
             btn = []
             chat = file_id.split("_")[0]
             settings = await get_settings(chat)
-            fsub_channels = list(dict.fromkeys((settings.get('fsub', []) if settings else [])+ AUTH_CHANNELS)) if ff.is_on("force_sub") else [] 
+            fsub_channels = list(dict.fromkeys((settings.get('fsub', []) if settings else [])+ AUTH_CHANNELS)) 
             btn += await is_subscribed(client, query.from_user.id, fsub_channels)
-            btn += await is_req_subscribed(client, query.from_user.id, AUTH_REQ_CHANNELS if ff.is_on("force_sub") else [])
+            btn += await is_req_subscribed(client, query.from_user.id, AUTH_REQ_CHANNELS)
             if btn:
                 btn.append([InlineKeyboardButton("🔄 ᴛʀʏ ᴀɢᴀɪɴ", callback_data=f"checksub#{kk}#{file_id}")])
                 try:
@@ -1395,7 +1394,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
 
     elif DreamxData.startswith("generate_stream_link"):
         _, file_id = DreamxData.split(":")
-        if ff.is_on("stream") and ff.is_on("stream_premium_only") and query.from_user.id not in ADMINS and not await db.has_premium_access(query.from_user.id):
+        if STREAM_MODE and PREMIUM_STREAM_MODE and query.from_user.id not in ADMINS and not await db.has_premium_access(query.from_user.id):
             return await query.answer("🔒 Stream / Fast Download is for Premium users only. Check /plan", show_alert=True)
         try:
             user_id = query.from_user.id
@@ -1465,7 +1464,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
                      InlineKeyboardButton('Pʀᴇᴍɪᴜᴍ 🎟', callback_data="premium_info"),
                 ],[
                     InlineKeyboardButton('🎁 ɪɴᴠɪᴛᴇ & ᴇᴀʀɴ', callback_data="invite_menu"),
-                    InlineKeyboardButton('📩 ᴄᴏɴᴛᴀᴄᴛ ᴀᴅᴍɪɴ', callback_data="contact_admin_btn")
+                    InlineKeyboardButton('📩 ᴄᴏɴᴛᴀᴄᴛ', callback_data="contact_admin_btn")
                 ]]
         reply_markup = InlineKeyboardMarkup(buttons)
         current_time = datetime.now(pytz.timezone(TIMEZONE))
@@ -1637,7 +1636,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
             btn = [[
                 InlineKeyboardButton('• ʙᴜʏ ᴘʀᴇᴍɪᴜᴍ •', callback_data='buy_info'),
             ],[
-                InlineKeyboardButton('• ʀᴇꜰᴇʀ ꜰʀɪᴇɴᴅꜱ', callback_data='invite_menu'),
+                InlineKeyboardButton('• ʀᴇꜰᴇʀ ꜰʀɪᴇɴᴅꜱ', callback_data='reffff'),
                 InlineKeyboardButton('ꜰʀᴇᴇ ᴛʀɪᴀʟ •', callback_data='give_trial')
             ],[
                 InlineKeyboardButton('⇋ ʙᴀᴄᴋ ᴛᴏ ʜᴏᴍᴇ ⇋', callback_data='start')
@@ -1830,7 +1829,7 @@ async def auto_filter(client, msg, spoll=False):
 
                 settings = await get_settings(message.chat.id)
                 if not files:
-                    if settings.get("spell_check") and ff.is_on("spell_check"):
+                    if settings.get("spell_check"):
                         ai_sts = await m.edit('🤖 ᴘʟᴇᴀꜱᴇ ᴡᴀɪᴛ, ᴀɪ ɪꜱ ᴄʜᴇᴄᴋɪɴɢ ʏᴏᴜʀ ꜱᴘᴇʟʟɪɴɢ...')
                         is_misspelled = await ai_spell_check(chat_id=message.chat.id, wrong_name=search)
 
@@ -1936,7 +1935,7 @@ async def auto_filter(client, msg, spoll=False):
             btn.append([InlineKeyboardButton(
                 text="↭ ɴᴏ ᴍᴏʀᴇ ᴘᴀɢᴇꜱ ᴀᴠᴀɪʟᴀʙʟᴇ ↭", callback_data="pages")])
 
-        if settings.get('imdb') and ff.is_on("imdb_results"):
+        if settings.get('imdb'):
             imdb = await get_posterx(search, file=(files[0]).file_name) if TMDB_ON_SEARCH else await get_poster(search, file=(files[0]).file_name)
         else:
             imdb = None
@@ -2036,7 +2035,7 @@ async def auto_filter(client, msg, spoll=False):
             return
 
         try:
-            if settings.get('auto_delete') and ff.is_on("auto_delete"):
+            if settings.get('auto_delete'):
                 asyncio.create_task(_schedule_delete(sent, message, DELETE_TIME))
         except KeyError:
             try:
