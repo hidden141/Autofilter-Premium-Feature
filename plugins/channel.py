@@ -1,3 +1,4 @@
+import feature_flags as ff
 import re
 import logging
 import asyncio
@@ -200,6 +201,8 @@ def extract_media_info(filename: str, caption: str):
 
 @Client.on_message(filters.chat(CHANNELS) & MEDIA_FILTER)
 async def media_handler(bot, message):
+    if not ff.is_on("auto_index"):
+        return
     media = next(
         (getattr(message, ft) for ft in ("document", "video", "audio")
          if getattr(message, ft, None)),
