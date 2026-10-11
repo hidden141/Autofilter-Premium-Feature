@@ -8,7 +8,7 @@ from dreamxbotz.Bot import work_loads
 from pyrogram import Client, utils, raw
 from .file_properties import get_file_ids
 from pyrogram.session import Session, Auth
-from pyrogram.errors import AuthBytesInvalid
+from pyrogram.errors import AuthBytesInvalid, FileReferenceExpired, FloodWait
 from dreamxbotz.server.exceptions import FIleNotFound
 from pyrogram.file_id import FileId, FileType, ThumbnailSource
 
@@ -50,11 +50,12 @@ class ByteStreamer:
         Generates the properties of a media file on a specific message.
         returns ths properties in a FIleId class.
         """
-        file_id = await get_file_ids(self.client, LOG_CHANNEL, id)
+        file_id = await get_file_ids(self.client, BIN_CHANNEL, id)
         logging.debug(f"Generated file ID and Unique ID for message with ID {id}")
         if not file_id:
             logging.debug(f"Message with ID {id} not found")
             raise FIleNotFound
+        file_id._msg_id = id
         self.cached_file_ids[id] = file_id
         logging.debug(f"Cached media message with ID {id}")
         return self.cached_file_ids[id]
@@ -170,56 +171,70 @@ class ByteStreamer:
         last_part_cut: int,
         part_count: int,
         chunk_size: int,
-    ) -> Union[str, None]:
+    ) -> Union[bytes, None]:
         """
         Custom generator that yields the bytes of the media file.
+        Each chunk is retried (timeouts, flood waits, expired file reference)
+        so a hiccup no longer silently truncates the download.
         """
         client = self.client
         work_loads[index] += 1
         logging.debug(f"Starting to yielding file with client {index}.")
-        media_session = await self.generate_media_session(client, file_id)
-
-        current_part = 1
-        location = await self.get_location(file_id)
-
         try:
-            r = await media_session.send(
-                raw.functions.upload.GetFile(
-                    location=location, offset=offset, limit=chunk_size
-                ),
-            )
-            if isinstance(r, raw.types.upload.File):
-                while True:
-                    chunk = r.bytes
-                    if not chunk:
-                        break
-                    elif part_count == 1:
-                        yield chunk[first_part_cut:last_part_cut]
-                    elif current_part == 1:
-                        yield chunk[first_part_cut:]
-                    elif current_part == part_count:
-                        yield chunk[:last_part_cut]
-                    else:
-                        yield chunk
+            media_session = await self.generate_media_session(client, file_id)
+            location = await self.get_location(file_id)
 
-                    current_part += 1
-                    offset += chunk_size
+            async def fetch(off):
+                nonlocal location
+                last_err = None
+                for attempt in range(4):
+                    try:
+                        return await media_session.send(
+                            raw.functions.upload.GetFile(
+                                location=location, offset=off, limit=chunk_size
+                            ),
+                        )
+                    except FileReferenceExpired:
+                        # re-read the message to get a fresh file_reference
+                        msg_id = getattr(file_id, "_msg_id", None)
+                        if msg_id is None:
+                            raise
+                        self.cached_file_ids.pop(msg_id, None)
+                        fresh = await get_file_ids(client, BIN_CHANNEL, msg_id)
+                        file_id.file_reference = fresh.file_reference
+                        location = await self.get_location(file_id)
+                    except FloodWait as e:
+                        last_err = e
+                        await asyncio.sleep(min(e.value, 10))
+                    except (TimeoutError, asyncio.TimeoutError, AttributeError, ConnectionError) as e:
+                        last_err = e
+                        await asyncio.sleep(0.5 * (attempt + 1))
+                raise last_err or RuntimeError("GetFile failed")
 
-                    if current_part > part_count:
-                        break
+            current_part = 1
+            r = await fetch(offset)
+            while isinstance(r, raw.types.upload.File):
+                chunk = r.bytes
+                if not chunk:
+                    break
+                if part_count == 1:
+                    yield chunk[first_part_cut:last_part_cut]
+                elif current_part == 1:
+                    yield chunk[first_part_cut:]
+                elif current_part == part_count:
+                    yield chunk[:last_part_cut]
+                else:
+                    yield chunk
 
-                    r = await media_session.send(
-                        raw.functions.upload.GetFile(
-                            location=location, offset=offset, limit=chunk_size
-                        ),
-                    )
-        except (TimeoutError, AttributeError):
-            pass
+                current_part += 1
+                offset += chunk_size
+                if current_part > part_count:
+                    break
+                r = await fetch(offset)
         finally:
-            logging.debug("Finished yielding file with {current_part} parts.")
+            logging.debug("Finished yielding file.")
             work_loads[index] -= 1
 
-    
     async def clean_cache(self) -> None:
         """
         function to clean the cache to reduce memory usage
