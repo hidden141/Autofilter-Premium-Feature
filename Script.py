@@ -453,8 +453,6 @@ This Is An Open-Source Project. You Can Use It Freely, But Selling The Source Co
 ✅ <b>ʏᴏᴜʀ 1ꜱᴛ ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ ɪs sᴜᴄᴄᴇssꜰᴜʟ.</b>
 🔓 <i>ʏᴏᴜ ʜᴀᴠᴇ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇss ᴜɴᴛɪʟ ᴛʜᴇ ɴᴇxᴛ ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ.</i>
 
-🎬 <b>Re-Search you movie name right now...</b>
-
 <code>#ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ 1/3 ✓</code>"""
 
     SECOND_VERIFICATION_TEXT = """<b><i>👋 ʜᴇʏ {},
@@ -472,8 +470,6 @@ This Is An Open-Source Project. You Can Use It Freely, But Selling The Source Co
 ✅ <b>ʏᴏᴜʀ 2ɴᴅ ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ ɪs sᴜᴄᴄᴇssꜰᴜʟ.</b>
 🔓 <i>ʏᴏᴜ ʜᴀᴠᴇ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇss ᴜɴᴛɪʟ ᴛʜᴇ ɴᴇxᴛ ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ.</i>
 
-🎬 <b>Re-Search you movie name right now...</b>
-
 <code>#ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ 2/3 ✓</code>"""
 
     THIRDT_VERIFICATION_TEXT = """<b><i>👋 ʜᴇʏ {},
@@ -490,8 +486,6 @@ This Is An Open-Source Project. You Can Use It Freely, But Selling The Source Co
 
 ✅ <b>ʏᴏᴜʀ 3ʀᴅ ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ ɪs sᴜᴄᴄᴇssꜰᴜʟ.</b>
 🔓 <i>ʏᴏᴜ ʜᴀᴠᴇ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇss ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ ꜰᴜʟʟ ᴅᴀʏ.</i>
-
-🎬 <b>Re-Search you movie name right now...</b>
 
 <code>#ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ 3/3 ✓</code>"""
 
