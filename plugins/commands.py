@@ -52,11 +52,19 @@ async def start(client, message):
         asyncio.create_task(_delete_later(lock, 120))
         return
     if len(m.command) == 2 and m.command[1].startswith(('notcopy', 'sendall')):
-        _, userid, verify_id, file_id = m.command[1].split("_", 3)
-        user_id = int(userid)
+        try:
+            _, userid, verify_id, file_id = m.command[1].split("_", 3)
+            user_id = int(userid)
+        except ValueError:
+            return await message.reply("<b>❌ ɪɴᴠᴀʟɪᴅ ᴠᴇʀɪꜰʏ ʟɪɴᴋ — ᴘʟᴇᴀsᴇ ʀᴇǫᴜᴇsᴛ ᴛʜᴇ ꜰɪʟᴇ ᴀɢᴀɪɴ.</b>", parse_mode=enums.ParseMode.HTML)
+        if user_id != m.from_user.id:
+            return await message.reply("<b>🚫 ᴛʜɪs ᴠᴇʀɪꜰʏ ʟɪɴᴋ ʙᴇʟᴏɴɢs ᴛᴏ ᴀɴᴏᴛʜᴇʀ ᴜsᴇʀ. ᴘʟᴇᴀsᴇ ʀᴇǫᴜᴇsᴛ ᴛʜᴇ ꜰɪʟᴇ ʏᴏᴜʀsᴇʟꜰ.</b>", parse_mode=enums.ParseMode.HTML)
         verify_id_info = await db.get_verify_id_info(user_id, verify_id)
         if not verify_id_info or verify_id_info["verified"]:
             return await message.reply("<b>⏳ ʟɪɴᴋ ᴇxᴘɪʀᴇᴅ — ᴘʟᴇᴀsᴇ ʀᴇǫᴜᴇsᴛ ᴛʜᴇ ꜰɪʟᴇ ᴀɢᴀɪɴ.</b>", parse_mode=enums.ParseMode.HTML)
+        # the file requested BEFORE verification is stored with the verify id;
+        # use it (the link payload can be truncated by Telegram's 64-char limit)
+        file_id = verify_id_info.get("file_id") or file_id
         # group id is stored with the verify id (survives bot restarts); fall back to memory
         grp_id = verify_id_info.get("grp_id") or temp.VERIFICATIONS.get(user_id, 0)
         try:
@@ -340,7 +348,7 @@ async def start(client, message):
                         logger.warning(f"Free-file notice failed: {e}")
             if verify_needed and not free_granted:
                 verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
-                await db.create_verify_id(user_id, verify_id, grp_id)
+                await db.create_verify_id(user_id, verify_id, grp_id, file_id)
                 temp.VERIFICATIONS[user_id] = grp_id
                 if message.command[1].startswith('allfiles'):
                     verify = await get_shortlink(f"https://telegram.me/{temp.U_NAME}?start=sendall_{user_id}_{verify_id}_{file_id}", grp_id, is_second_shortener, is_third_shortener)
@@ -366,13 +374,24 @@ async def start(client, message):
                     reply_markup=reply_markup,
                     parse_mode=enums.ParseMode.HTML
                 )
-                await asyncio.sleep(300) 
-                await n.delete()
-                await m.delete()
+                async def _cleanup(*msgs):
+                    await asyncio.sleep(300)
+                    for x in msgs:
+                        try:
+                            await x.delete()
+                        except Exception:
+                            pass
+                asyncio.create_task(_cleanup(n, m))
                 return
         except Exception as e:
-            print(f"Error In Verification - {e}")
-            pass
+            # fail closed: never hand out the file if the verify link could not be built
+            logger.exception(f"Error In Verification - {e}")
+            await log_error(client, f"❗️ Verification Error:\n\n{repr(e)}")
+            try:
+                await m.reply_text("<b>⚠️ ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ ʟɪɴᴋ ɢᴇɴᴇʀᴀᴛɪᴏɴ ꜰᴀɪʟᴇᴅ. ᴘʟᴇᴀsᴇ ᴛʀʏ ᴀɢᴀɪɴ ɪɴ ᴀ ꜰᴇᴡ ᴍɪɴᴜᴛᴇs.</b>", parse_mode=enums.ParseMode.HTML)
+            except Exception:
+                pass
+            return
 
     # Daily file limit (non-premium only; Premium = unlimited)
     if not is_premium and FREE_DAILY_LIMIT > 0:
