@@ -8,7 +8,6 @@ import asyncio
 import string
 import pytz
 from .pmfilter import auto_filter 
-from invite_system import register_invite
 from Script import script
 from datetime import datetime
 from database.refer import referdb
@@ -53,90 +52,74 @@ async def start(client, message):
         asyncio.create_task(_delete_later(lock, 120))
         return
     if len(m.command) == 2 and m.command[1].startswith(('notcopy', 'sendall')):
-        # link formats:  notcopy_<user>_<verify_id>[_<file_id>]   /   sendall_<user>_<verify_id>[_<key>]
-        # The requested file is stored in the database when the verify link is made, so the
-        # link can stay short (Telegram cuts start parameters at 64 characters).
-        _parts = m.command[1].split("_", 3)
-        _expired = "<b>⏳ ʟɪɴᴋ ᴇxᴘɪʀᴇᴅ — ᴘʟᴇᴀsᴇ ʀᴇǫᴜᴇsᴛ ᴛʜᴇ ꜰɪʟᴇ ᴀɢᴀɪɴ.</b>"
-        try:
-            user_id = int(_parts[1])
-            verify_id = _parts[2]
-        except (IndexError, ValueError):
-            return await message.reply(_expired, parse_mode=enums.ParseMode.HTML)
+        _, userid, verify_id, file_id = m.command[1].split("_", 3)
+        user_id = int(userid)
         verify_id_info = await db.get_verify_id_info(user_id, verify_id)
-        file_id = (verify_id_info or {}).get("file_id") or (_parts[3] if len(_parts) > 3 else None)
-        if not file_id:
-            return await message.reply(_expired, parse_mode=enums.ParseMode.HTML)
-        # group id is stored with the verify id (survives bot restarts); fall back to memory
-        grp_id = (verify_id_info or {}).get("grp_id") or temp.VERIFICATIONS.get(user_id, 0)
         if not verify_id_info or verify_id_info["verified"]:
-            # Link was already used (opened twice) or is unknown: do NOT dead-end.
-            # Hand the requested file to the normal delivery flow below - it still checks verification,
-            # so a verified user gets the file and an unverified user gets a fresh verify link.
-            deep = "allfiles" if m.command[1].startswith('sendall') else "file"
-            message.command = ["start", f"{deep}_{grp_id}_{file_id}"]
-        else:
-            try:
-                settings = await get_settings(grp_id)
-            except Exception:
-                settings = {}
+            return await message.reply("<b>⏳ ʟɪɴᴋ ᴇxᴘɪʀᴇᴅ — ᴘʟᴇᴀsᴇ ʀᴇǫᴜᴇsᴛ ᴛʜᴇ ꜰɪʟᴇ ᴀɢᴀɪɴ.</b>", parse_mode=enums.ParseMode.HTML)
+        # group id is stored with the verify id (survives bot restarts); fall back to memory
+        grp_id = verify_id_info.get("grp_id") or temp.VERIFICATIONS.get(user_id, 0)
+        try:
+            settings = await get_settings(grp_id)
+        except Exception:
+            settings = {}
 
-            ist_timezone = pytz.timezone('Asia/Kolkata')
-            if await db.user_verified(user_id):
-                key = "third_time_verified"
-            else:
-                key = "second_time_verified" if await db.is_user_verified(user_id) else "last_verified"
-            current_time = datetime.now(tz=ist_timezone)
-            await db.update_notcopy_user(user_id, {key: current_time})
-            await db.update_verify_id_info(user_id, verify_id, {"verified": True})
-            if key == "third_time_verified":
-                num, msg = 3, script.THIRDT_VERIFY_COMPLETE_TEXT
-            elif key == "second_time_verified":
-                num, msg = 2, script.SECOND_VERIFY_COMPLETE_TEXT
-            else:
-                num, msg = 1, script.VERIFY_COMPLETE_TEXT
-            if message.command[1].startswith('sendall'):
-                verifiedfiles = f"https://telegram.me/{temp.U_NAME}?start=allfiles_{grp_id}_{file_id}"
-            else:
-                verifiedfiles = f"https://telegram.me/{temp.U_NAME}?start=file_{grp_id}_{file_id}"
-            btn = [[
-                InlineKeyboardButton("🎬 ɴᴏᴛ ʀᴇᴄᴇɪᴠᴇᴅ? ᴛᴀᴘ ᴛᴏ ɢᴇᴛ ᴍᴏᴠɪᴇ", url=verifiedfiles),
-            ], [
-                InlineKeyboardButton("💎 ɢᴇᴛ ᴘʀᴇᴍɪᴜᴍ (ɴᴏ ᴠᴇʀɪꜰʏ)", callback_data="premium_info"),
-            ]]
-            reply_markup = InlineKeyboardMarkup(btn)
-            caption = msg.format(message.from_user.mention, get_readable_time(TWO_VERIFY_GAP))
-            # 1) show the completion message FIRST (never blocked by log-channel / image errors)
-            try:
-                dlt = await m.reply_photo(
-                    photo=VERIFY_IMG,
-                    caption=caption,
-                    reply_markup=reply_markup,
-                    parse_mode=enums.ParseMode.HTML
-                )
-            except Exception as e:
-                logger.warning(f"Verify image failed, sending text instead: {e}")
-                dlt = await m.reply_text(
-                    caption,
-                    reply_markup=reply_markup,
-                    parse_mode=enums.ParseMode.HTML,
-                    disable_web_page_preview=True
-                )
-            # 2) log (best effort)
-            try:
-                log_chat = settings.get('log') if settings else None
-                if log_chat:
-                    await client.send_message(log_chat, script.VERIFIED_LOG_TEXT.format(
-                        m.from_user.mention, user_id,
-                        datetime.now(ist_timezone).strftime('%d %B %Y'), num))
-            except Exception as e:
-                logger.warning(f"Verification log failed: {e}")
-            # 3) auto-clean the notice without blocking the handler
-            asyncio.create_task(_delete_later(dlt, 300))
-            # 4) deliver the movie/file straight away (no extra click needed):
-            #    continue into the normal file-delivery flow below
-            deep = "allfiles" if message.command[1].startswith('sendall') else "file"
-            message.command = ["start", f"{deep}_{grp_id}_{file_id}"]
+        ist_timezone = pytz.timezone('Asia/Kolkata')
+        if await db.user_verified(user_id):
+            key = "third_time_verified"
+        else:
+            key = "second_time_verified" if await db.is_user_verified(user_id) else "last_verified"
+        current_time = datetime.now(tz=ist_timezone)
+        await db.update_notcopy_user(user_id, {key: current_time})
+        await db.update_verify_id_info(user_id, verify_id, {"verified": True})
+        if key == "third_time_verified":
+            num, msg = 3, script.THIRDT_VERIFY_COMPLETE_TEXT
+        elif key == "second_time_verified":
+            num, msg = 2, script.SECOND_VERIFY_COMPLETE_TEXT
+        else:
+            num, msg = 1, script.VERIFY_COMPLETE_TEXT
+        if message.command[1].startswith('sendall'):
+            verifiedfiles = f"https://telegram.me/{temp.U_NAME}?start=allfiles_{grp_id}_{file_id}"
+        else:
+            verifiedfiles = f"https://telegram.me/{temp.U_NAME}?start=file_{grp_id}_{file_id}"
+        btn = [[
+            InlineKeyboardButton("🎬 ɴᴏᴛ ʀᴇᴄᴇɪᴠᴇᴅ? ᴛᴀᴘ ᴛᴏ ɢᴇᴛ ᴍᴏᴠɪᴇ", url=verifiedfiles),
+        ], [
+            InlineKeyboardButton("💎 ɢᴇᴛ ᴘʀᴇᴍɪᴜᴍ (ɴᴏ ᴠᴇʀɪꜰʏ)", callback_data="premium_info"),
+        ]]
+        reply_markup = InlineKeyboardMarkup(btn)
+        caption = msg.format(message.from_user.mention, get_readable_time(TWO_VERIFY_GAP))
+        # 1) show the completion message FIRST (never blocked by log-channel / image errors)
+        try:
+            dlt = await m.reply_photo(
+                photo=VERIFY_IMG,
+                caption=caption,
+                reply_markup=reply_markup,
+                parse_mode=enums.ParseMode.HTML
+            )
+        except Exception as e:
+            logger.warning(f"Verify image failed, sending text instead: {e}")
+            dlt = await m.reply_text(
+                caption,
+                reply_markup=reply_markup,
+                parse_mode=enums.ParseMode.HTML,
+                disable_web_page_preview=True
+            )
+        # 2) log (best effort)
+        try:
+            log_chat = settings.get('log') if settings else None
+            if log_chat:
+                await client.send_message(log_chat, script.VERIFIED_LOG_TEXT.format(
+                    m.from_user.mention, user_id,
+                    datetime.now(ist_timezone).strftime('%d %B %Y'), num))
+        except Exception as e:
+            logger.warning(f"Verification log failed: {e}")
+        # 3) auto-clean the notice without blocking the handler
+        asyncio.create_task(_delete_later(dlt, 300))
+        # 4) deliver the movie/file straight away (no extra click needed):
+        #    continue into the normal file-delivery flow below
+        deep = "allfiles" if message.command[1].startswith('sendall') else "file"
+        message.command = ["start", f"{deep}_{grp_id}_{file_id}"]
     if message.chat.type in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
         buttons = [[
                     InlineKeyboardButton('❤️ ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ ❤️', url=f'http://t.me/{temp.U_NAME}?startgroup=true')
@@ -151,22 +134,9 @@ async def start(client, message):
             await client.send_message(LOG_CHANNEL, script.LOG_TEXT_G.format(message.chat.title, message.chat.id, total, "Unknown"))       
             await db.add_chat(message.chat.id, message.chat.title)
         return 
-    is_new_user = not await db.is_user_exist(message.from_user.id)
-    if is_new_user:
+    if not await db.is_user_exist(message.from_user.id):
         await db.add_user(message.from_user.id, message.from_user.first_name)
         await client.send_message(LOG_CHANNEL, script.LOG_TEXT_P.format(message.from_user.id, message.from_user.mention))
-    # Invite & Earn: /start reff_<inviter_id>  (registered once, then the normal menu is shown)
-    if len(message.command) == 2 and message.command[1].startswith("reff_"):
-        try:
-            referrer_id = int(message.command[1].split("_")[1])
-        except (ValueError, IndexError):
-            referrer_id = None
-        if referrer_id is not None:
-            try:
-                await register_invite(client, message, referrer_id, is_new_user)
-            except Exception:
-                logger.exception("register_invite failed")
-        message.command = ["start"]
     if len(message.command) != 2:
         buttons = [[
                     InlineKeyboardButton(' ⌣🍒ᴄʜᴀɴɴᴇʟs ', callback_data='channel'),
@@ -177,9 +147,6 @@ async def start(client, message):
                 ],[
                     InlineKeyboardButton('ᴛʀᴇɴᴅɪɴɢ 👑', callback_data="topsearch"),
                      InlineKeyboardButton('Pʀᴇᴍɪᴜᴍ 🎟', callback_data="premium_info"),
-                ],[
-                    InlineKeyboardButton('🎁 ɪɴᴠɪᴛᴇ & ᴇᴀʀɴ', callback_data="invite_menu"),
-                    InlineKeyboardButton('📩 ᴄᴏɴᴛᴀᴄᴛ', callback_data="contact_admin_btn")
                 ]] 
         reply_markup = InlineKeyboardMarkup(buttons)
         current_time = datetime.now(pytz.timezone(TIMEZONE))
@@ -213,9 +180,6 @@ async def start(client, message):
                 ],[
                     InlineKeyboardButton('ᴛʀᴇɴᴅɪɴɢ 👑', callback_data="topsearch"),
                      InlineKeyboardButton('Pʀᴇᴍɪᴜᴍ 🎟', callback_data="premium_info"),
-                ],[
-                    InlineKeyboardButton('🎁 ɪɴᴠɪᴛᴇ & ᴇᴀʀɴ', callback_data="invite_menu"),
-                    InlineKeyboardButton('📩 ᴄᴏɴᴛᴀᴄᴛ', callback_data="contact_admin_btn")
                 ]]
                     
         reply_markup = InlineKeyboardMarkup(buttons)
@@ -239,6 +203,48 @@ async def start(client, message):
             parse_mode=enums.ParseMode.HTML
         )
         return
+    if message.command[1].startswith("reff_"):
+        try:
+            user_id = int(message.command[1].split("_")[1])
+        except ValueError:
+            await message.reply_text("Invalid refer!")
+            return
+        if user_id == message.from_user.id:
+            await message.reply_text("Hᴇʏ Dᴜᴅᴇ, Yᴏᴜ Cᴀɴ'ᴛ Rᴇғᴇʀ Yᴏᴜʀsᴇʟғ 🤣!\n\nsʜᴀʀᴇ ʟɪɴᴋ ʏᴏᴜʀ ғʀɪᴇɴᴅ ᴀɴᴅ ɢᴇᴛ 10 ʀᴇғᴇʀʀᴀʟ ᴘᴏɪɴᴛ ɪғ ʏᴏᴜ ᴀʀᴇ ᴄᴏʟʟᴇᴄᴛɪɴɢ 100 ʀᴇғᴇʀʀᴀʟ ᴘᴏɪɴᴛs ᴛʜᴇɴ ʏᴏᴜ ᴄᴀɴ ɢᴇᴛ 1 ᴍᴏɴᴛʜ ғʀᴇᴇ ᴘʀᴇᴍɪᴜᴍ ᴍᴇᴍʙᴇʀsʜɪᴘ.")
+            return
+        if referdb.is_user_in_list(message.from_user.id):
+            await message.reply_text("Yᴏᴜ ʜᴀᴠᴇ ʙᴇᴇɴ ᴀʟʀᴇᴀᴅʏ ɪɴᴠɪᴛᴇᴅ ❗")
+            return
+        if await db.is_user_exist(message.from_user.id): 
+            await message.reply_text("‼️ Yᴏᴜ Hᴀᴠᴇ Bᴇᴇɴ Aʟʀᴇᴀᴅʏ Iɴᴠɪᴛᴇᴅ ᴏʀ Jᴏɪɴᴇᴅ")
+            return 
+        try:
+            uss = await client.get_users(user_id)
+        except Exception:
+            return 	    
+        referdb.add_user(message.from_user.id)
+        fromuse = referdb.get_refer_points(user_id) + 10
+        if fromuse == 100:
+            referdb.add_refer_points(user_id, 0) 
+            await message.reply_text(f"🎉 𝗖𝗼𝗻𝗴𝗿𝗮𝘁𝘂𝗹𝗮𝘁𝗶𝗼𝗻𝘀! 𝗬𝗼𝘂 𝘄𝗼𝗻 𝟭𝟬 𝗥𝗲𝗳𝗲𝗿𝗿𝗮𝗹 𝗽𝗼𝗶𝗻𝘁 𝗯𝗲𝗰𝗮𝘂𝘀𝗲 𝗬𝗼𝘂 𝗵𝗮𝘃𝗲 𝗯𝗲𝗲𝗻 𝗦𝘂𝗰𝗰𝗲𝘀𝘀𝗳𝘂𝗹𝗹𝘆 𝗜𝗻𝘃𝗶𝘁𝗲𝗱 ☞ {uss.mention}!")		    
+            await message.reply_text(user_id, f"You have been successfully invited by {message.from_user.mention}!") 	
+            seconds = 2592000
+            if seconds > 0:
+                expiry_time = datetime.datetime.now() + datetime.timedelta(seconds=seconds)
+                user_data = {"id": user_id, "expiry_time": expiry_time}  # Using "id" instead of "user_id"  
+                await db.update_user(user_data)  # Use the update_user method to update or insert user data		    
+                await client.send_message(
+                chat_id=user_id,
+                text=f"<b>Hᴇʏ {uss.mention}\n\nYᴏᴜ ɢᴏᴛ 1 ᴍᴏɴᴛʜ ᴘʀᴇᴍɪᴜᴍ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ʙʏ ɪɴᴠɪᴛɪɴɢ 10 ᴜsᴇʀs ❗", disable_web_page_preview=True              
+                )
+            for admin in ADMINS:
+                await client.send_message(chat_id=admin, text=f"Sᴜᴄᴄᴇss ғᴜʟʟʏ ᴛᴀsᴋ ᴄᴏᴍᴘʟᴇᴛᴇᴅ ʙʏ ᴛʜɪs ᴜsᴇʀ:\n\nuser Nᴀᴍᴇ: {uss.mention}\n\nUsᴇʀ ɪᴅ: {uss.id}!")	
+        else:
+            referdb.add_refer_points(user_id, fromuse)
+            await message.reply_text(f"You have been successfully invited by {uss.mention}!")
+            await client.send_message(user_id, f"𝗖𝗼𝗻𝗴𝗿𝗮𝘁𝘂𝗹𝗮𝘁𝗶𝗼𝗻𝘀! 𝗬𝗼𝘂 𝘄𝗼𝗻 𝟭𝟬 𝗥𝗲𝗳𝗲𝗿𝗿𝗮𝗹 𝗽𝗼𝗶𝗻𝘁 𝗯𝗲𝗰𝗮𝘂𝘀𝗲 𝗬𝗼𝘂 𝗵𝗮𝘃𝗲 𝗯𝗲𝗲𝗻 𝗦𝘂𝗰𝗰𝗲𝘀𝘀𝗳𝘂𝗹𝗹𝘆 𝗜𝗻𝘃𝗶𝘁𝗲𝗱 ☞{message.from_user.mention}!")
+        return
+        
     if len(message.command) == 2 and message.command[1] in ["premium"]:
         buttons = [[
                     InlineKeyboardButton('📲 ꜱᴇɴᴅ ᴘᴀʏᴍᴇɴᴛ ꜱᴄʀᴇᴇɴꜱʜᴏᴛ', url=OWNER_LNK)
@@ -334,12 +340,12 @@ async def start(client, message):
                         logger.warning(f"Free-file notice failed: {e}")
             if verify_needed and not free_granted:
                 verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
-                await db.create_verify_id(user_id, verify_id, grp_id, file_id)
+                await db.create_verify_id(user_id, verify_id, grp_id)
                 temp.VERIFICATIONS[user_id] = grp_id
                 if message.command[1].startswith('allfiles'):
-                    verify = await get_shortlink(f"https://telegram.me/{temp.U_NAME}?start=sendall_{user_id}_{verify_id}", grp_id, is_second_shortener, is_third_shortener)
+                    verify = await get_shortlink(f"https://telegram.me/{temp.U_NAME}?start=sendall_{user_id}_{verify_id}_{file_id}", grp_id, is_second_shortener, is_third_shortener)
                 else:
-                    verify = await get_shortlink(f"https://telegram.me/{temp.U_NAME}?start=notcopy_{user_id}_{verify_id}", grp_id, is_second_shortener, is_third_shortener)
+                    verify = await get_shortlink(f"https://telegram.me/{temp.U_NAME}?start=notcopy_{user_id}_{verify_id}_{file_id}", grp_id, is_second_shortener, is_third_shortener)
                 if is_third_shortener:
                     howtodownload = settings.get('tutorial_3', TUTORIAL_3)
                 else:
