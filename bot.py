@@ -37,21 +37,8 @@ botStartTime = time.time()
 ppath = "plugins/*.py"
 files = glob.glob(ppath)
 
-_web_started = False
-
-async def start_web_once():
-    # Bind the port FIRST so Render sees an open port even if Telegram makes us wait (FloodWait)
-    global _web_started
-    if _web_started:
-        return
-    app = web.AppRunner(await web_server())
-    await app.setup()
-    await web.TCPSite(app, "0.0.0.0", PORT).start()
-    _web_started = True
-
 async def dreamxbotz_start():
     print('\n\nInitalizing DreamxBotz')
-    await start_web_once()
     await dreamxbotz.start()
     bot_info = await dreamxbotz.get_me()
     dreamxbotz.username = bot_info.username
@@ -93,6 +80,10 @@ async def dreamxbotz_start():
     now = datetime.now(tz)
     time_str = now.strftime("%H:%M:%S %p")
     await dreamxbotz.send_message(chat_id=LOG_CHANNEL, text=script.RESTART_TXT.format(temp.B_LINK, today, time_str))
+    app = web.AppRunner(await web_server())
+    await app.setup()
+    bind_address = "0.0.0.0"
+    await web.TCPSite(app, bind_address, PORT).start()
     dreamxbotz.loop.create_task(keep_alive())
     await idle()
     
