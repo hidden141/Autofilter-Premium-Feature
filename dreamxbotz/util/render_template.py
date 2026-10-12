@@ -33,7 +33,7 @@ async def render_page(id, secure_hash, src=None):
         template_file = "dreamxbotz/template/dl.html"
 
     with open(template_file, encoding="utf-8") as f:
-        template = jinja2.Template(f.read())
+        template = jinja2.Template(f.read(), autoescape=True)
 
     return template.render(
         file_name=raw_name.replace("_", " "),
