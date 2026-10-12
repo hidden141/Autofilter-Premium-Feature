@@ -17,10 +17,12 @@ async def render_page(id, secure_hash, src=None):
         raise InvalidHash
 
     raw_name = file_data.file_name or f"{file_data.unique_id[:8]}"
-    src = urllib.parse.urljoin(
+    base = urllib.parse.urljoin(
         URL,
-        f"{id}/{urllib.parse.quote_plus(raw_name)}?hash={secure_hash}",
+        f"{id}/{urllib.parse.quote(raw_name, safe='')}?hash={secure_hash}",
     )
+    src = base + "&stream=1"      # inline -> plays in <video>/<audio>
+    download_url = base           # attachment -> saves to disk
 
     mime = file_data.mime_type or "application/octet-stream"
     tag = mime.split("/")[0].strip()
@@ -33,11 +35,12 @@ async def render_page(id, secure_hash, src=None):
         template_file = "dreamxbotz/template/dl.html"
 
     with open(template_file, encoding="utf-8") as f:
-        template = jinja2.Template(f.read(), autoescape=True)
+        template = jinja2.Environment(autoescape=True).from_string(f.read())
 
     return template.render(
         file_name=raw_name.replace("_", " "),
         file_url=src,
+        download_url=download_url,
         file_size=file_size,
         file_unique_id=file_data.unique_id,
     )
