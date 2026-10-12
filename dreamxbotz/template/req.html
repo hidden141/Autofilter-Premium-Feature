@@ -67,6 +67,10 @@ main{max-width:1000px;margin:0 auto;padding:0 1.25rem 2rem}
 /* ---------- info panel ---------- */
 .info{margin-top:1.1rem;padding:1.4rem}
 .file-name{font-family:'Rajdhani',sans-serif;font-size:1.45rem;font-weight:600;line-height:1.3;word-break:break-word}
+.watch-label{margin-top:1.1rem;display:flex;align-items:center;gap:.8rem;color:var(--text);font-weight:600;font-size:1rem;letter-spacing:.02em}
+.watch-label::before,.watch-label::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--red-hot))}
+.watch-label::after{background:linear-gradient(270deg,transparent,var(--red-hot))}
+.watch-label+.btn-row{margin-top:.8rem}
 .btn-row{display:grid;grid-template-columns:1.15fr 1fr 1fr 1fr;gap:.75rem;margin-top:1.1rem;position:relative}
 .btn{display:flex;align-items:center;justify-content:center;gap:.6rem;padding:.9rem 1rem;border-radius:10px;cursor:pointer;
   font:600 1.02rem 'Chakra Petch',sans-serif;color:var(--text);border:1px solid rgba(255,255,255,.14);
@@ -220,6 +224,7 @@ main{max-width:1000px;margin:0 auto;padding:0 1.25rem 2rem}
         <span id="meta-res" style="display:none"><i class="fas fa-expand"></i><b></b></span>
       </div>
 
+      <div class="watch-label"><span>🎞️ ᴡᴀᴛᴄʜ ᴏɴʟɪɴᴇ ᴛʜʀᴏᴜɢʜ ᴠʟᴄ, ᴍx ᴘʟᴀʏᴇʀ</span></div>
       <div class="btn-row">
         <button class="btn primary" onclick="blazeDownload()"><i class="fas fa-download"></i>Download</button>
         <button class="btn" onclick="vlc_player()"><img src="https://i.postimg.cc/15TQ4y7B/vlc.png" alt="">VLC Player</button>
@@ -234,24 +239,6 @@ main{max-width:1000px;margin:0 auto;padding:0 1.25rem 2rem}
           <a onclick="hd_player()"><img src="https://i.postimg.cc/rFT43LNh/hd.png" alt="">HD Player</a>
           <a onclick="mx_playerpro()"><img src="https://i.postimg.cc/sx4Msv4T/mx.png" alt="">MX Player Pro</a>
         </div>
-      </div>
-
-      <div class="chips">
-        <div class="chips-label">Speed</div>
-        <button class="chip small" data-speed="0.5">0.5x</button>
-        <button class="chip small" data-speed="0.75">0.75x</button>
-        <button class="chip small active" data-speed="1">Normal</button>
-        <button class="chip small" data-speed="1.25">1.25x</button>
-        <button class="chip small" data-speed="1.5">1.5x</button>
-        <button class="chip small" data-speed="2">2x</button>
-      </div>
-      <div class="chips">
-        <div class="chips-label">Tools</div>
-        <button class="chip small" id="btn-theater"><i class="fas fa-expand-arrows-alt"></i>Theater</button>
-        <button class="chip small" id="btn-loop"><i class="fas fa-repeat"></i>Loop</button>
-        <button class="chip small" id="btn-pip"><i class="far fa-clone"></i>Mini player</button>
-        <button class="chip small" id="btn-copy"><i class="fas fa-link"></i>Copy link</button>
-        <button class="chip small" id="btn-help"><i class="far fa-keyboard"></i>Shortcuts</button>
       </div>
     </div>
   </section>
@@ -383,13 +370,13 @@ function seekBy(sec, side) {
 function toggleTheater(force) {
   const on = typeof force === 'boolean' ? force : !document.body.classList.contains('theater');
   document.body.classList.toggle('theater', on);
-  $('#btn-theater').classList.toggle('active', on);
+  var bt=$('#btn-theater'); if (bt) bt.classList.toggle('active', on);
   LS.set('theater', on);
   if (on) $('#video-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 function toggleLoop() {
   video.loop = !video.loop;
-  $('#btn-loop').classList.toggle('active', video.loop);
+  var bl=$('#btn-loop'); if (bl) bl.classList.toggle('active', video.loop);
   osd('<i class="fas fa-repeat"></i> Loop ' + (video.loop ? 'on' : 'off'));
 }
 async function togglePip() {
@@ -572,13 +559,7 @@ function initPlayer() {
   document.querySelectorAll('[data-speed]').forEach(function (c) {
     c.addEventListener('click', function () { setSpeed(parseFloat(c.dataset.speed)); });
   });
-  $('#btn-theater').addEventListener('click', function () { toggleTheater(); });
-  $('#btn-loop').addEventListener('click', toggleLoop);
-  $('#btn-pip').addEventListener('click', togglePip);
-  $('#btn-copy').addEventListener('click', copyLink);
-  $('#btn-help').addEventListener('click', function () { toggleHelp(true); });
   $('#help-modal').addEventListener('click', function (e) { if (e.target.id === 'help-modal') toggleHelp(false); });
-  if (!document.pictureInPictureEnabled) $('#btn-pip').style.display = 'none';
 }
 
 // ---- keyboard shortcuts ----
