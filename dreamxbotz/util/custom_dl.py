@@ -185,7 +185,7 @@ class ByteStreamer:
             location = await self.get_location(file_id)
 
             async def fetch(off):
-                nonlocal location
+                nonlocal location, media_session
                 last_err = None
                 for attempt in range(4):
                     try:
@@ -206,9 +206,17 @@ class ByteStreamer:
                     except FloodWait as e:
                         last_err = e
                         await asyncio.sleep(min(e.value, 10))
-                    except (TimeoutError, asyncio.TimeoutError, AttributeError, ConnectionError) as e:
+                    except (TimeoutError, asyncio.TimeoutError, AttributeError, ConnectionError, OSError) as e:
                         last_err = e
                         await asyncio.sleep(0.5 * (attempt + 1))
+                        # the cached media session may be dead: rebuild it
+                        dead = client.media_sessions.pop(file_id.dc_id, None)
+                        if dead is not None:
+                            try:
+                                await dead.stop()
+                            except Exception:
+                                pass
+                        media_session = await self.generate_media_session(client, file_id)
                 raise last_err or RuntimeError("GetFile failed")
 
             current_part = 1
