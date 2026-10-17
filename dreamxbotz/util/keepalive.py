@@ -15,7 +15,7 @@ async def ping_server():
             ) as session:
                 async with session.get(URL) as resp:
                     logging.info("Pinged server with response: {}".format(resp.status))
-        except TimeoutError:
+        except (TimeoutError, asyncio.TimeoutError):
             logging.warning("Couldn't connect to the site URL..!")
         except Exception:
             traceback.print_exc()
