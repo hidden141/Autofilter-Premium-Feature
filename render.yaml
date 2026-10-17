@@ -4,7 +4,7 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: free            # use "starter" for 24/7 without sleeping
-    healthCheckPath: /
+    healthCheckPath: /health
     autoDeploy: true
     envVars:
       # ---- required ----
@@ -37,11 +37,22 @@ services:
         sync: false
       - key: TMDB_API_KEY
         sync: false
-      - key: TRENDING_PREMIUM_ONLY
-        value: "True"
+      - key: CACHE_TIME
+        value: "300"
       - key: ULTRA_FAST_MODE
         value: "True"
-      - key: PORT
-        value: "8080"
+      - key: AUTO_DELETE
+        value: "True"
+      - key: PM_SEARCH
+        value: "True"
+      - key: STREAM_MODE
+        value: "True"
+      - key: MULTIPLE_DB
+        value: "False"
+      # Set DATABASE_URI2 only when MULTIPLE_DB=True.
+      - key: DATABASE_URI2
+        sync: false
+      - key: TRENDING_PREMIUM_ONLY
+        value: "True"
       - key: PYTHONUNBUFFERED
         value: "1"
