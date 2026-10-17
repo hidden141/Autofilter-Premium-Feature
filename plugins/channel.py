@@ -257,10 +257,10 @@ async def _process_with_lock(bot, filename, caption, media_info, base_name, proc
 
     if not movie_doc:
         if TMDB_POSTER:
-            details = await get_movie_detailsx(base_name)
-            if details.get("error"):
+            details = await get_movie_detailsx(base_name) or {"error": "empty"}
+            if details.get("error") or not (details.get("poster_url") or details.get("backdrop_url")):
                 error_tmdb=True
-                logger.info("TMDB error switching to IMDB")
+                logger.info(f"TMDB failed/no poster ({details.get('error')}), switching to IMDB")
                 details = await get_movie_details(base_name) or {}
         else:
             details = await get_movie_details(base_name) or {}
@@ -274,10 +274,11 @@ async def _process_with_lock(bot, filename, caption, media_info, base_name, proc
         movie_doc = {
             "_id": base_name,
             "files": [file_data],
-            "poster_url": details.get("backdrop_url") if LANDSCAPE_POSTER and TMDB_POSTER and not error_tmdb else details.get("poster_url"),
+            "poster_url": (details.get("backdrop_url") or details.get("poster_url")) if LANDSCAPE_POSTER and TMDB_POSTER and not error_tmdb else details.get("poster_url"),
+            "is_landscape": bool(LANDSCAPE_POSTER and TMDB_POSTER and not error_tmdb and details.get("backdrop_url")),
             "genres": genres,
             "rating": details.get("rating", "N/A"),
-            "imdb_url": details.get("url", "")if not TMDB_POSTER else details.get("tmdb_url"),
+            "imdb_url": (details.get("tmdb_url") if TMDB_POSTER and not error_tmdb else details.get("url")) or "",
             "year": media_info["year"] or details.get("year"),
             "tag": media_info["tag"],
             "ott_platform": media_info["ott_platform"],
@@ -326,8 +327,13 @@ async def send_movie_update(bot, base_name):
                 )
             ]])
 
+            resized_poster = None
             if movie_doc.get("poster_url") and not LINK_PREVIEW:
-                resized_poster = await fetch_image(movie_doc["poster_url"], size=(2560, 1440) if LANDSCAPE_POSTER and TMDB_POSTER and not error_tmdb else (853, 1280))
+                resized_poster = await fetch_image(
+                    movie_doc["poster_url"],
+                    size=(1920, 1080) if movie_doc.get("is_landscape") else (853, 1280)
+                )
+            if resized_poster:
                 msg = await bot.send_photo(
                     chat_id=MOVIE_UPDATE_CHANNEL,
                     photo=resized_poster,
