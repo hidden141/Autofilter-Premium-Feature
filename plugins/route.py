@@ -27,48 +27,52 @@ async def favicon_route_handler(request):
 async def root_route_handler(request):
     return web.json_response("dreamxbotz")
 
+def _parse_path(request: web.Request):
+    """Returns (message_id, secure_hash) from /<hash><id> or /<id>/<name>?hash=..."""
+    path = request.match_info["path"]
+    match = re.search(r"^([a-zA-Z0-9_-]{6})(\d+)$", path)
+    if match:
+        return int(match.group(2)), match.group(1)
+    found = re.search(r"^(\d+)(?:/\S*)?$", path)
+    if not found:
+        raise FIleNotFound
+    return int(found.group(1)), request.rel_url.query.get("hash", "")
+
+def _handle_errors(exc):
+    if isinstance(exc, InvalidHash):
+        return web.HTTPForbidden(text=exc.message)
+    if isinstance(exc, FIleNotFound):
+        return web.HTTPNotFound(text=exc.message)
+    if isinstance(exc, (AttributeError, BadStatusLine, ConnectionResetError)):
+        return web.HTTPBadRequest(text="Bad request")
+    return None
+
 @routes.get(r"/watch/{path:\S+}", allow_head=True)
-async def stream_handler(request: web.Request):
+async def watch_handler(request: web.Request):
     try:
-        path = request.match_info["path"]
-        match = re.search(r"^([a-zA-Z0-9_-]{6})(\d+)$", path)
-        if match:
-            secure_hash = match.group(1)
-            id = int(match.group(2))
-        else:
-            id = int(re.search(r"(\d+)(?:\/\S+)?", path).group(1))
-            secure_hash = request.rel_url.query.get("hash")
+        id, secure_hash = _parse_path(request)
         return web.Response(text=await render_page(id, secure_hash), content_type='text/html')
-    except InvalidHash as e:
-        raise web.HTTPForbidden(text=e.message)
-    except FIleNotFound as e:
-        raise web.HTTPNotFound(text=e.message)
-    except (AttributeError, BadStatusLine, ConnectionResetError):
-        raise web.HTTPBadRequest(text="Bad request")
+    except web.HTTPException:
+        raise
     except Exception as e:
-        logging.critical(e.with_traceback(None))
+        err = _handle_errors(e)
+        if err:
+            raise err
+        logging.exception("watch page failed")
         raise web.HTTPInternalServerError(text=str(e))
 
 @routes.get(r"/{path:\S+}", allow_head=True)
 async def stream_handler(request: web.Request):
     try:
-        path = request.match_info["path"]
-        match = re.search(r"^([a-zA-Z0-9_-]{6})(\d+)$", path)
-        if match:
-            secure_hash = match.group(1)
-            id = int(match.group(2))
-        else:
-            id = int(re.search(r"(\d+)(?:\/\S+)?", path).group(1))
-            secure_hash = request.rel_url.query.get("hash")
+        id, secure_hash = _parse_path(request)
         return await media_streamer(request, id, secure_hash)
-    except InvalidHash as e:
-        raise web.HTTPForbidden(text=e.message)
-    except FIleNotFound as e:
-        raise web.HTTPNotFound(text=e.message)
-    except (AttributeError, BadStatusLine, ConnectionResetError):
-        raise web.HTTPBadRequest(text="Bad request")
+    except web.HTTPException:
+        raise
     except Exception as e:
-        logging.critical(e.with_traceback(None))
+        err = _handle_errors(e)
+        if err:
+            raise err
+        logging.exception("stream failed")
         raise web.HTTPInternalServerError(text=str(e))
 
 class_cache = {}
@@ -142,7 +146,9 @@ async def media_streamer(request: web.Request, id: int, secure_hash: str):
 
     mime_type = file_id.mime_type or None
     file_name = file_id.file_name or None
-    disposition = "attachment"
+    # ?stream=1 (used by the web player) -> inline so every browser plays it;
+    # the plain link (bot button / Download) -> attachment so it saves to disk
+    disposition = "inline" if request.rel_url.query.get("stream") else "attachment"
 
     if mime_type:
         if not file_name:
@@ -156,6 +162,8 @@ async def media_streamer(request: web.Request, id: int, secure_hash: str):
         else:
             mime_type = "application/octet-stream"
             file_name = f"{secrets.token_hex(2)}.unknown"
+    if mime_type == "application/octet-stream" and file_name:
+        mime_type = mimetypes.guess_type(file_name)[0] or mime_type
 
     headers = {
         "Content-Type": f"{mime_type}",
@@ -179,9 +187,12 @@ async def media_streamer(request: web.Request, id: int, secure_hash: str):
         async for chunk in body:
             await resp.write(chunk)
         await resp.write_eof()
-    except (ConnectionResetError, ConnectionError, asyncio.CancelledError):
+    except (ConnectionResetError, ConnectionError):
         # viewer seeked / closed the player: stop pulling from Telegram
         await body.aclose()
+    except asyncio.CancelledError:
+        await body.aclose()
+        raise
     except Exception as e:
         logging.warning(f"Stream aborted for message {id}: {e!r}")
         await body.aclose()
