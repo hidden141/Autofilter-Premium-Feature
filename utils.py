@@ -315,10 +315,8 @@ async def get_posterx(query, bulk=False, id=False, file=None):
     plot = ""
     if not LONG_IMDB_DESCRIPTION:
         plot = details.get('plot')
-        if plot and len(plot) > 0:
-            plot = plot[0]
     else:
-        plot = details.get('plot outline')
+        plot = details.get('plot') or details.get('plot outline')
     if plot and len(plot) > 800:
         plot = plot[0:800] + "..."
 
@@ -336,7 +334,7 @@ async def get_posterx(query, bulk=False, id=False, file=None):
         "seasons": details.get('seasons'),
         "box_office": details.get('box_office'),
         'localized_title': details.get('localized_title'),
-        'kind': 'movie' if 'movie' in details.get('tmdb_url', '') else 'tv series',
+        'kind': 'movie' if 'movie' in (details.get('tmdb_url') or '') else 'tv series',
         "imdb_id": details.get('imdb_id'),
         "cast": list_to_str(details.get("cast")),
         "runtime": list_to_str(details.get("runtime")),
