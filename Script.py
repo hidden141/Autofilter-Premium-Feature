@@ -2,9 +2,7 @@ class script(object):
     START_TXT = """<b>👋 ʜᴇʏ {}, {}</b>
 
 <b>😃  ɪ ᴀᴍ <a href="https://t.me/{}">{}</a>,
-ʏᴏᴜʀ ᴅᴀɪʟʏ ᴇɴᴛᴇʀᴛᴀɪɴᴍᴇɴᴛ ᴅᴇsᴛɪɴᴀᴛɪᴏɴ,ɪ ᴄᴀɴ ʜᴇʟᴘ ʏᴏᴜ ꜰɪɴᴅ ʏᴏᴜʀ ᴄᴏɴᴛᴇɴᴛ,ᴊᴜsᴛ sᴇɴᴅ ᴍᴇ ᴛʜᴇ ɴᴀᴍᴇ ᴏꜰ ʏᴏᴜʀ ᴄᴏɴᴛᴇɴᴛ
-ᴀɴᴅ sᴇᴇ ᴛʜᴇ ᴍᴀɢɪᴄ ✨️</b>
-"""
+ʏᴏᴜʀ ᴅᴀɪʟʏ ᴇɴᴛᴇʀᴛᴀɪɴᴍᴇɴᴛ ᴅᴇsᴛɪɴᴀᴛɪᴏɴ,ɪ ᴄᴀɴ ʜᴇʟᴘ ʏᴏᴜ ꜰɪɴᴅ ʏᴏᴜʀ ᴄᴏɴᴛᴇɴᴛ,ᴊᴜsᴛ sᴇɴᴅ ᴍᴇ ᴛʜᴇ ɴᴀᴍᴇ ᴏꜰ ʏᴏᴜʀ ᴄᴏɴᴛᴇɴᴛ ᴀɴᴅ sᴇᴇ ᴛʜᴇ ᴍᴀɢɪᴄ ✨️</b>"""
 
 
     GSTART_TXT = """<b></b>
@@ -227,20 +225,12 @@ Mᴇꜱꜱᴀɢᴇ : <b>{}</b>"""
 
     
     MOVIE_UPDATE_NOTIFY_TXT = """
-<a href="{poster_url}">📥</a> <a href="{imdb_url}">New {tag} Added</a>
+<a href="{poster_url}">📥</a> <a href="{imdb_url}"><b>ɴᴇᴡ {tag} ᴀᴅᴅᴇᴅ</b></a>
 
-✨ ᴛɪᴛʟᴇ : <b><code>{filename}</code></b>
-
-<blockquote>🎭 ɢᴇɴʀᴇs : <b>{genres}</b>
-📺 ᴏᴛᴛ        : <b>{ott}</b>
-🎞️ ǫᴜᴀʟɪᴛʏ : <b>{quality}</b>
-🎧 ᴀᴜᴅɪᴏ    : <b>{language}</b>
-🔥 ʀᴀᴛɪɴɢ   : <b>{rating}</b>
-{episodes}
-</blockquote>
-
-
-🔍 <b>Sᴇᴀʀᴄʜ →</b> {search_link}
+✨ <b>ᴛɪᴛʟᴇ :</b> <code>{filename}</code>
+━━┈┉•✦•┉┈━━
+{details}
+🔍 <b>Sᴇᴀʀᴄʜ 'ɴ</b> {search_link} 🔍
 """
 
 
