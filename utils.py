@@ -90,15 +90,20 @@ async def _invite_button(bot, channel_id, request=False):
 
 
 async def _check_one(bot, user_id, channel_id, request=False):
-    """Returns a join button if the user still has to join `channel_id`, else None.
-    If the bot itself cannot check the channel (not admin, wrong id ...) that channel is skipped
-    and a warning is logged, so a wrong setting can never lock every user out."""
+    """Returns (button, blocking) for `channel_id`, or None when nothing has to be shown.
+
+    * blocking=True  -> the user really has not joined: the join screen must be shown.
+    * blocking=False -> the bot cannot verify this channel (not admin there / wrong id) but a join link
+      could still be built. It is only listed next to the blocking channels, it never locks anybody out.
+    If nothing can be shown for a broken channel a warning is logged (see /fsub_status)."""
     if request:
         try:
             if await db.has_joined_channel(user_id, channel_id):
                 return None
         except Exception as e:
             logger.warning(f"has_joined_channel failed for {channel_id}: {e}")
+
+    blocking = True
     try:
         member = await bot.get_chat_member(channel_id, user_id)
         if not _needs_to_join(member):
@@ -107,38 +112,62 @@ async def _check_one(bot, user_id, channel_id, request=False):
             return None
     except UserNotParticipant:
         pass
-    except _CONFIG_ERRORS as e:
-        logger.warning(f"Force-sub: bot cannot check channel {channel_id} ({type(e).__name__}). "
-                       f"Make the bot ADMIN in that channel and check the channel id. Channel skipped.")
-        return None
     except FloodWait as e:
         await asyncio.sleep(min(e.value, 5))
         return None
     except Exception as e:
-        logger.warning(f"Force-sub check failed for {channel_id}: {e}")
-        return None
+        # _CONFIG_ERRORS (not admin / bad id) and "Peer id invalid" ValueErrors end up here:
+        # the user can not be verified, so never block on this channel.
+        blocking = False
+        logger.warning(f"Force-sub: bot cannot check channel {channel_id} ({type(e).__name__}: {e}). "
+                       f"Make the bot ADMIN in that channel and check the channel id. Run /fsub_status.")
 
     try:
-        return await _invite_button(bot, channel_id, request)
+        return await _invite_button(bot, channel_id, request), blocking
     except FloodWait as e:
         logger.warning(f"Invite link FloodWait for {channel_id}: {e.value}s")
-    except _CONFIG_ERRORS as e:
-        logger.warning(f"Force-sub: cannot create invite link for {channel_id} ({type(e).__name__}). Make the bot ADMIN with 'Invite users' right.")
     except Exception as e:
-        logger.warning(f"Invite link error for {channel_id}: {e}")
+        logger.warning(f"Force-sub: cannot create join link for {channel_id} ({type(e).__name__}: {e}). "
+                       f"Make the bot ADMIN with 'Invite users' right. Run /fsub_status.")
     return None
+
+
+def _rows(results):
+    """Button rows to show. Empty unless at least one channel is really blocking the user."""
+    results = [r for r in results if r]
+    if not any(blocking for _, blocking in results):
+        return []
+    return [[b] for b, _ in results]
 
 
 async def is_req_subscribed(bot, user_id, rqfsub_channels):
     """Request-to-join channels. Returns a list of button rows for the channels still to join."""
-    results = await asyncio.gather(*[_check_one(bot, user_id, ch, True) for ch in rqfsub_channels])
-    return [[b] for b in results if b]
+    return _rows(await asyncio.gather(*[_check_one(bot, user_id, ch, True) for ch in rqfsub_channels]))
 
 
 async def is_subscribed(bot, user_id, fsub_channels):
     """Normal force-sub channels. Returns a list of button rows for the channels still to join."""
-    results = await asyncio.gather(*[_check_one(bot, user_id, ch, False) for ch in fsub_channels])
-    return [[b] for b in results if b]
+    return _rows(await asyncio.gather(*[_check_one(bot, user_id, ch, False) for ch in fsub_channels]))
+
+
+async def fsub_status(bot, channels, request=False):
+    """Admin diagnostics: one line per channel telling whether the bot can really check it."""
+    lines = []
+    for ch in channels:
+        try:
+            chat = await bot.get_chat(ch)
+            me = await bot.get_chat_member(ch, "me")
+            if me.status not in (enums.ChatMemberStatus.ADMINISTRATOR, enums.ChatMemberStatus.OWNER):
+                lines.append(f"⚠️ <code>{ch}</code> <b>{chat.title}</b> - bot is NOT admin (membership cannot be checked)")
+                continue
+            priv = getattr(me, "privileges", None)
+            if request and priv is not None and not getattr(priv, "can_invite_users", True):
+                lines.append(f"⚠️ <code>{ch}</code> <b>{chat.title}</b> - admin but missing 'Invite users' right")
+                continue
+            lines.append(f"✅ <code>{ch}</code> <b>{chat.title}</b> - OK")
+        except Exception as e:
+            lines.append(f"❌ <code>{ch}</code> - bot cannot access it ({type(e).__name__}). Wrong id, or bot is not in the channel")
+    return lines
 
 
 def fsub_retry_button(kk, file_id):
