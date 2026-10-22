@@ -56,6 +56,9 @@ SUPPORT_CHAT = environ.get('SUPPORT_CHAT', 'https://t.me/+cNr_1nOUfTdjYTdl')  # 
 # FORCE_SUB 
 auth_req_channels = environ.get("AUTH_REQ_CHANNELS", "-100")# requst to join Channel for force sub (make sure bot is admin) only for bot ADMINS  
 auth_channels     = environ.get("AUTH_CHANNELS", "-100")# Channels for force sub (make sure bot is admin)
+# Easy way: put your 2 force-sub channel IDs here (bot must be admin in both). Example: -1001234567890
+FSUB_CHANNEL_1 = environ.get("FSUB_CHANNEL_1", "-100")  # 1st force sub channel ID
+FSUB_CHANNEL_2 = environ.get("FSUB_CHANNEL_2", "-100")  # 2nd force sub channel ID
 
 # ============================
 # Payment Configuration
@@ -92,6 +95,10 @@ ABOVE_PREVIEW = is_enabled(str(environ.get('ABOVE_PREVIEW', True)), True) # Show
 TMDB_API_KEY = environ.get('TMDB_API_KEY', '') # preffer to use your own tmdb API Key get it from https://www.themoviedb.org/settings/api
 TMDB_POSTER = is_enabled(str(environ.get('TMDB_POSTER', False)), False) # Shows TMDB poster in notification msg
 LANDSCAPE_POSTER = is_enabled(str(environ.get('LANDSCAPE_POSTER', True)), True) # Shows landscape poster in notification msg
+BUTTON_COLOR_CHANGE = is_enabled(str(environ.get('BUTTON_COLOR_CHANGE', True)), True)  # GET FILES button colour keeps changing (True) / fixed (False)
+BUTTON_COLOR_INTERVAL = int(environ.get('BUTTON_COLOR_INTERVAL', '60'))  # seconds between colour changes (keep >= 30 to avoid FloodWait)
+BUTTON_COLOR_POSTS = int(environ.get('BUTTON_COLOR_POSTS', '10'))  # only the latest N posts keep changing colour
+
 
 # ============================
 # Verification Settings
@@ -173,7 +180,11 @@ PREMIUM_STREAM_MODE = is_enabled(environ.get('PREMIUM_STREAM_MODE', "True"), Tru
 # ============================
 
 AUTH_REQ_CHANNELS = [int(ch) for ch in auth_req_channels.split() if ch and id_pattern.match(ch)] 
-AUTH_CHANNELS = [int(ch) for ch in auth_channels.split() if ch and id_pattern.match(ch)]
+AUTH_CHANNELS = list(dict.fromkeys(
+    int(ch)
+    for ch in (auth_channels.replace(",", " ").split() + [FSUB_CHANNEL_1.strip(), FSUB_CHANNEL_2.strip()])
+    if ch and ch != "-100" and id_pattern.match(ch)
+))  # AUTH_CHANNELS + FSUB_CHANNEL_1 + FSUB_CHANNEL_2 (duplicates / placeholder -100 ignored)
 REQST_CHANNEL = int(reqst_channel) if reqst_channel and id_pattern.search(reqst_channel) else None
 SUPPORT_CHAT_ID = int(support_chat_id) if support_chat_id and id_pattern.search(support_chat_id) else None
 LANGUAGES = {"ᴍᴀʟᴀʏᴀʟᴀᴍ":"mal","ᴛᴀᴍɪʟ":"tam","ᴇɴɢʟɪsʜ":"eng","ʜɪɴᴅɪ":"hin","ᴛᴇʟᴜɢᴜ":"tel","ᴋᴀɴɴᴀᴅᴀ":"kan","ɢᴜᴊᴀʀᴀᴛɪ":"guj","ᴍᴀʀᴀᴛʜɪ":"mar","ᴘᴜɴᴊᴀʙɪ":"pun"}
