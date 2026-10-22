@@ -96,7 +96,9 @@ _color_task = None
 
 
 def _files_url(base_name):
-    return f"https://t.me/{temp.U_NAME}?start=getfile-{base_name.replace(' ', '-')}"
+    # Telegram start parameters allow only A-Z a-z 0-9 _ - and max 64 chars
+    safe = re.sub(r"[^A-Za-z0-9_-]", "", base_name.replace(" ", "-"))[:56].strip("-") or "movie"
+    return f"https://t.me/{temp.U_NAME}?start=getfile-{safe}"
 
 
 def get_buttons(base_name):
@@ -313,15 +315,12 @@ def extract_media_info(filename: str, caption: str):
 
 @Client.on_message(filters.chat(CHANNELS) & MEDIA_FILTER)
 async def media_handler(bot, message):
-    media = next(
-        (getattr(message, ft) for ft in ("document", "video", "audio")
-         if getattr(message, ft, None)),
-        None
-    )
-    if not media:
+    file_type = next((ft for ft in ("document", "video", "audio") if getattr(message, ft, None)), None)
+    if not file_type:
         return
+    media = getattr(message, file_type)
 
-    media.file_type = next(ft for ft in ("document", "video", "audio") if hasattr(message, ft))
+    media.file_type = file_type
     media.caption = message.caption or ""
     success, info = await save_file(media)
     if not success:

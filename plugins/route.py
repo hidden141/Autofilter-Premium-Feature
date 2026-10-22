@@ -27,6 +27,11 @@ async def favicon_route_handler(request):
 async def root_route_handler(request):
     return web.json_response("dreamxbotz")
 
+@routes.get("/health", allow_head=True)
+async def health_route_handler(request):
+    # Render health check (render.yaml -> healthCheckPath: /health)
+    return web.json_response({"status": "ok"})
+
 def _parse_path(request: web.Request):
     """Returns (message_id, secure_hash) from /<hash><id> or /<id>/<name>?hash=..."""
     path = request.match_info["path"]

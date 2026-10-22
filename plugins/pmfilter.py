@@ -1,4 +1,4 @@
-from utils import get_size, is_subscribed, is_req_subscribed, group_setting_buttons, get_poster, get_posterx, temp, get_settings, save_group_settings, get_cap, imdb, is_check_admin, extract_request_content, log_error, clean_filename, generate_season_variations, clean_search_text
+from utils import get_size, is_subscribed, is_req_subscribed, fsub_retry_button, group_setting_buttons, get_poster, get_posterx, temp, get_settings, save_group_settings, get_cap, imdb, is_check_admin, extract_request_content, log_error, clean_filename, generate_season_variations, clean_search_text
 import tracemalloc
 from fuzzywuzzy import process
 from dreamxbotz.util.file_properties import get_name, get_hash
@@ -953,15 +953,20 @@ async def cb_handler(client: Client, query: CallbackQuery):
 
     elif query.data.startswith("checksub"):
         try:
-            ident, kk, file_id = query.data.split("#")
+            ident, kk, file_id = query.data.split("#", 2)
             btn = []
-            chat = file_id.split("_")[0]
-            settings = await get_settings(chat)
+            try:
+                chat = int(file_id.split("_")[0])
+            except ValueError:
+                chat = 0
+            settings = await get_settings(chat) if chat else None
             fsub_channels = list(dict.fromkeys((settings.get('fsub', []) if settings else [])+ AUTH_CHANNELS)) 
-            btn += await is_subscribed(client, query.from_user.id, fsub_channels)
-            btn += await is_req_subscribed(client, query.from_user.id, AUTH_REQ_CHANNELS)
+            if fsub_channels:
+                btn += await is_subscribed(client, query.from_user.id, fsub_channels)
+            if AUTH_REQ_CHANNELS:
+                btn += await is_req_subscribed(client, query.from_user.id, AUTH_REQ_CHANNELS)
             if btn:
-                btn.append([InlineKeyboardButton("🔄 ᴛʀʏ ᴀɢᴀɪɴ", callback_data=f"checksub#{kk}#{file_id}")])
+                btn.append([fsub_retry_button(kk, file_id)])
                 try:
                     await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(btn))
                 except MessageNotModified:

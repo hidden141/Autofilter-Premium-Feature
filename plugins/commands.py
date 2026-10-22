@@ -18,7 +18,7 @@ from pyrogram.errors import FloodWait, ChatAdminRequired, UserNotParticipant
 from database.ia_filterdb import Media, Media2, get_file_details, unpack_new_file_id, get_bad_files
 from database.users_chats_db import db
 from info import *
-from utils import get_settings, save_group_settings, is_subscribed, is_req_subscribed, get_size, get_shortlink, is_check_admin, temp, get_readable_time, get_time, generate_settings_text, log_error, clean_filename
+from utils import get_settings, save_group_settings, is_subscribed, is_req_subscribed, fsub_retry_button, get_size, get_shortlink, is_check_admin, temp, get_readable_time, get_time, generate_settings_text, log_error, clean_filename
 import time
 
 
@@ -289,34 +289,40 @@ async def start(client, message):
     if not is_premium:
         try:
             btn = []
-            chat = int(data.split("_", 2)[1])
-            settings      = await get_settings(chat)
-            fsub_channels = list(dict.fromkeys((settings.get('fsub', []) if settings else [])+ AUTH_CHANNELS)) 
+            settings      = await get_settings(grp_id) if grp_id else None
+            fsub_channels = list(dict.fromkeys((settings.get('fsub', []) if settings else []) + AUTH_CHANNELS))
 
             if fsub_channels:
                 btn += await is_subscribed(client, message.from_user.id, fsub_channels)
             if AUTH_REQ_CHANNELS:
                 btn += await is_req_subscribed(client, message.from_user.id, AUTH_REQ_CHANNELS)
             if btn:
+                if "_" in message.command[1]:
+                    kk, retry_id = message.command[1].split("_", 1)
+                    btn.append([fsub_retry_button(kk, retry_id)])
                 reply_markup = InlineKeyboardMarkup(btn)
-                if len(message.command) > 1 and "_" in message.command[1]:
-                    kk, file_id = message.command[1].split("_", 1)
-                    btn.append([
-                        InlineKeyboardButton("♻️ ᴛʀʏ ᴀɢᴀɪɴ ♻️", callback_data=f"checksub#{kk}#{file_id}")
-                    ])
-                    reply_markup = InlineKeyboardMarkup(btn)
                 photo = random.choice(FSUB_PICS) if FSUB_PICS else "https://graph.org/file/7478ff3eac37f4329c3d8.jpg"
                 caption = (
                     f"👋 ʜᴇʟʟᴏ {message.from_user.mention}\n\n"
                     "🛑 ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴛʜᴇ ʀᴇǫᴜɪʀᴇᴅ ᴄʜᴀɴɴᴇʟs ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ.\n"
                     "👉 ᴊᴏɪɴ ᴀʟʟ ᴛʜᴇ ʙᴇʟᴏᴡ ᴄʜᴀɴɴᴇʟs ᴀɴᴅ ᴛʀʏ ᴀɢᴀɪɴ."
                 )
-                await message.reply_photo(
-                    photo=photo,
-                    caption=caption,
-                    reply_markup=reply_markup,
-                    parse_mode=enums.ParseMode.HTML
-                )
+                try:
+                    await message.reply_photo(
+                        photo=photo,
+                        caption=caption,
+                        reply_markup=reply_markup,
+                        parse_mode=enums.ParseMode.HTML
+                    )
+                except Exception as photo_err:
+                    # a dead image link must never let the user skip force-sub
+                    logger.warning(f"Force-sub photo failed ({photo_err}); sending text instead")
+                    await message.reply_text(
+                        caption,
+                        reply_markup=reply_markup,
+                        parse_mode=enums.ParseMode.HTML,
+                        disable_web_page_preview=True
+                    )
                 return
 
         except Exception as e:
