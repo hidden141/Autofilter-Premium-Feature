@@ -6,7 +6,9 @@ from collections import defaultdict
 from plugins.Dreamxfutures.Imdbposter import get_movie_detailsx, fetch_image, get_movie_details
 from database.users_chats_db import db
 from pyrogram import Client, filters, enums
-from info import CHANNELS, MOVIE_UPDATE_CHANNEL, LINK_PREVIEW, ABOVE_PREVIEW, BAD_WORDS, LANDSCAPE_POSTER, TMDB_POSTER
+from info import CHANNELS, MOVIE_UPDATE_CHANNEL, LINK_PREVIEW, ABOVE_PREVIEW, BAD_WORDS, LANDSCAPE_POSTER, TMDB_POSTER, BOT_TOKEN, BUTTON_COLOR_CHANGE, BUTTON_COLOR_INTERVAL, BUTTON_COLOR_POSTS
+import aiohttp
+from collections import deque
 from Script import script
 from database.ia_filterdb import save_file
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
@@ -65,7 +67,7 @@ OTT_PLATFORMS = {
 STANDARD_GENRES = {
     'Action', 'Adventure', 'Animation', 'Biography', 'Comedy', 'Crime', 'Documentary',
     'Drama', 'Family', 'Fantasy', 'Film-Noir', 'History', 'Horror', 'Music',
-    'Musical', 'Mystery', 'Romance', 'Sci-Fi', 'Sport', 'Thriller', 'War', 'Western'
+    'Musical', 'Mystery', 'News', 'Reality-TV', 'Romance', 'Sci-Fi', 'Sport', 'Talk-Show', 'Thriller', 'War', 'Western'
 }
 
 # Precompiled regex patterns
@@ -84,6 +86,95 @@ NAMED_REGEX = re.compile(r'Season\s*0*(\d{1,2})[\s\-,:]*Ep(?:isode)?\s*0*(\d{1,3
 EP_ONLY_RANGE = re.compile(r'\b(?:EP|Episode)0*(\d{1,3})\s*-\s*0*(\d{1,3})\b',re.IGNORECASE)
 
 
+
+# ---------------- Colour changing GET FILES button ----------------
+# Telegram Bot API button styles: primary (blue), success (green), danger (red)
+BUTTON_STYLES = ["danger", "success", "primary"]
+_color_state = {}                      # message_id -> index of current style
+_recent_posts = deque(maxlen=max(1, BUTTON_COLOR_POSTS))  # (base_name, message_id)
+_color_task = None
+
+
+def _files_url(base_name):
+    return f"https://t.me/{temp.U_NAME}?start=getfile-{base_name.replace(' ', '-')}"
+
+
+def get_buttons(base_name):
+    """Normal pyrogram keyboard (used for send/edit, colour is applied right after)."""
+    return InlineKeyboardMarkup([[InlineKeyboardButton('ɢᴇᴛ ғɪʟᴇs', url=_files_url(base_name))]])
+
+
+async def set_button_color(message_id, base_name, style):
+    """Edit only the reply markup through Bot API so the button gets a colour."""
+    payload = {
+        "chat_id": MOVIE_UPDATE_CHANNEL,
+        "message_id": message_id,
+        "reply_markup": {"inline_keyboard": [[{
+            "text": "ɢᴇᴛ ғɪʟᴇs",
+            "url": _files_url(base_name),
+            "style": style,
+        }]]},
+    }
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageReplyMarkup",
+                json=payload, timeout=aiohttp.ClientTimeout(total=15)
+            ) as resp:
+                data = await resp.json()
+                if not data.get("ok"):
+                    desc = data.get("description", "")
+                    if "not modified" not in desc:
+                        logger.warning("Button colour change failed: %s", desc)
+                    return data.get("error_code") == 429
+    except Exception as e:
+        logger.warning("Button colour error: %s", e)
+    return False
+
+
+async def apply_color(base_name, message_id, advance=True):
+    idx = _color_state.get(message_id, -1)
+    idx = (idx + 1) % len(BUTTON_STYLES) if advance else max(idx, 0)
+    _color_state[message_id] = idx
+    await set_button_color(message_id, base_name, BUTTON_STYLES[idx])
+
+
+def track_post(base_name, message_id):
+    if not BUTTON_COLOR_CHANGE or not message_id:
+        return
+    _recent_posts.append((base_name, message_id))
+
+
+async def color_loop():
+    global _color_task
+    while True:
+        await asyncio.sleep(max(30, BUTTON_COLOR_INTERVAL))
+        for base_name, message_id in list(_recent_posts):
+            try:
+                await apply_color(base_name, message_id)
+            except Exception:
+                logger.exception("color_loop error")
+            await asyncio.sleep(3)  # spacing between edits
+
+
+def start_color_loop():
+    global _color_task
+    if BUTTON_COLOR_CHANGE and (_color_task is None or _color_task.done()):
+        _color_task = asyncio.create_task(color_loop())
+
+
+def format_runtime(rt):
+    """'117', '117 min', '1h 57m' -> '1h 57m'"""
+    if not rt:
+        return "N/A"
+    m = re.search(r"(\d+)", str(rt))
+    if not m or "h" in str(rt).lower():
+        return str(rt)
+    total = int(m.group(1))
+    h, mins = divmod(total, 60)
+    return f"{h}h {mins}m" if h else f"{mins}m"
+
+
 MEDIA_FILTER = filters.document | filters.video | filters.audio
 locks = defaultdict(asyncio.Lock)
 pending_updates = {}
@@ -100,9 +191,31 @@ def remove_ignored_words(text: str) -> str:
     IGNORE_WORDS_LOWER = {w.lower() for w in IGNORE_WORDS}
     return " ".join(word for word in text.split() if word.lower() not in IGNORE_WORDS_LOWER)
 
+def _norm_quality(q: str) -> str:
+    q = q.strip()
+    low = q.lower()
+    if low in ("web-dl", "web dl", "webdl"):
+        return "WEB-DL"
+    if low.endswith("p") and low[:-1].isdigit():
+        return low
+    return q.upper() if low in ("hevc", "4k", "hdtv", "hdtc", "hdrip", "dvdscr", "dvdrip") else q.title() if low in ("webrip", "bluray", "brrip", "bdrip", "camrip", "telesync", "predvd", "tvrip", "hdcam") else q
+
+def quality_sort_key(q: str):
+    m = re.match(r"^(\d+)p$", q.lower())
+    if m:
+        return (0, int(m.group(1)), q)
+    if q.lower() == "4k":
+        return (0, 2160, q)
+    return (1, 0, q)
+
 def get_qualities(text: str) -> str:
-    qualities = QUALITY_PATTERN.findall(text)
-    return ", ".join(qualities) if qualities else "N/A"
+    found = []
+    for q in QUALITY_PATTERN.findall(text or ""):
+        q = _norm_quality(q)
+        if q not in found:
+            found.append(q)
+    found.sort(key=quality_sort_key)
+    return ", ".join(found) if found else "N/A"
 
 def extract_ott_platform(text: str) -> str:
     text = text.lower()
@@ -141,7 +254,7 @@ def extract_media_info(filename: str, caption: str):
     season = episode = year = None
     tag = "#MOVIE"
     processed_raw = base_raw = filename
-    quality = get_qualities(caption_clean) or get_qualities(filename.lower()) or "N/A"
+    quality = get_qualities(f"{caption_clean} {filename.lower()}")
     ott_platform = extract_ott_platform(f"{filename} {caption_clean}")
 
     lang_keys = {k for k in CAPTION_LANGUAGES if k in caption_clean or k in filename.lower()}
@@ -278,6 +391,7 @@ async def _process_with_lock(bot, filename, caption, media_info, base_name, proc
             "is_landscape": bool(LANDSCAPE_POSTER and TMDB_POSTER and not error_tmdb and details.get("backdrop_url")),
             "genres": genres,
             "rating": details.get("rating", "N/A"),
+            "runtime": format_runtime(details.get("runtime")),
             "imdb_url": (details.get("tmdb_url") if TMDB_POSTER and not error_tmdb else details.get("url")) or "",
             "year": media_info["year"] or details.get("year"),
             "tag": media_info["tag"],
@@ -320,12 +434,7 @@ async def send_movie_update(bot, base_name):
                 return None
 
             text = generate_movie_message(movie_doc, base_name)
-            buttons = InlineKeyboardMarkup([[
-                InlineKeyboardButton(
-                    'ɢᴇᴛ ғɪʟᴇs',
-                    url=f"https://t.me/{temp.U_NAME}?start=getfile-{base_name.replace(' ', '-')}"
-                )
-            ]])
+            buttons = get_buttons(base_name)
 
             resized_poster = None
             if movie_doc.get("poster_url") and not LINK_PREVIEW:
@@ -358,6 +467,9 @@ async def send_movie_update(bot, base_name):
                 {"_id": base_name},
                 {"$set": {"message_id": msg.id, "is_photo": is_photo}}
             )
+            track_post(base_name, msg.id)
+            await apply_color(base_name, msg.id, advance=False)
+            start_color_loop()
             return msg
         except FloodWait as e:
             wait_time = e.value + 2
@@ -374,12 +486,7 @@ async def update_movie_message(bot, base_name):
             return
 
         text = generate_movie_message(movie_doc, base_name)
-        buttons = InlineKeyboardMarkup([[
-            InlineKeyboardButton(
-                'ɢᴇᴛ ғɪʟᴇs',
-                url=f"https://t.me/{temp.U_NAME}?start=getfile-{base_name.replace(' ', '-')}"
-            )
-        ]])
+        buttons = get_buttons(base_name)
 
         message_id = movie_doc.get("message_id")
         is_photo = movie_doc.get("is_photo", False)
@@ -407,6 +514,8 @@ async def update_movie_message(bot, base_name):
                     invert_media=ABOVE_PREVIEW,
                     disable_web_page_preview=not LINK_PREVIEW
                 )
+            track_post(base_name, message_id)
+            await apply_color(base_name, message_id, advance=False)
             return
         except (MessageIdInvalid, MessageNotModified):
             pass
@@ -487,20 +596,45 @@ def generate_movie_message(movie_doc, base_name):
             epi_block = f"📺 ᴇᴘɪsᴏᴅᴇs : <b>\n{epi_str}</b>"
 
     genres = movie_doc.get("genres", "N/A")
-    quality_str = ", ".join(sorted(all_qualities)) if all_qualities else "N/A"
+    quality_str = ", ".join(sorted({_norm_quality(q) for q in all_qualities}, key=quality_sort_key)) if all_qualities else "N/A"
     language_str = ", ".join(sorted(all_languages)) if all_languages else "N/A"
     ott_str = ", ".join(sorted(all_ott_platforms)) if all_ott_platforms else "N/A"
+
+    def has(v):
+        return bool(v) and str(v).strip().upper() not in ("N/A", "NONE", "")
+
+    rating_raw = movie_doc.get("rating", "N/A")
+    rating_str = f"{rating_raw}/10" if has(rating_raw) else "N/A"
+    runtime_str = movie_doc.get("runtime") or "N/A"
+
+    # Only show the fields that actually have a value
+    rows = []
+    if has(genres):
+        rows.append(f"🎭 ɢᴇɴʀᴇs   : <b>{genres}</b>")
+    if has(ott_str):
+        rows.append(f"🍿 ᴏᴛᴛ        : <b>{ott_str}</b>")
+    if has(runtime_str):
+        rows.append(f"⏱️ ʀᴜɴᴛɪᴍᴇ : <b>{runtime_str}</b>")
+    if has(quality_str):
+        rows.append(f"🎬 ǫᴜᴀʟɪᴛʏ : <b>{quality_str}</b>")
+    if has(language_str):
+        rows.append(f"🔊 ᴀᴜᴅɪᴏ    : <b>{language_str}</b>")
+    if has(rating_str):
+        rows.append(f"🌟 ʀᴀᴛɪɴɢ   : <b>{rating_str}</b>")
+    if epi_block:
+        rows.append(epi_block)
+
+    details = ""
+    if rows:
+        details = "\n<blockquote>" + "\n".join(rows) + "</blockquote>\n━━┈┉•✦•┉┈━━\n"
+    else:
+        details = "\n"
 
     return script.MOVIE_UPDATE_NOTIFY_TXT.format(
         poster_url=movie_doc.get("poster_url", ""),
         imdb_url=movie_doc.get("imdb_url", ""),
-        filename=base_name,
+        filename=base_name.title() if base_name.islower() else base_name,
         tag=primary_tag,
-        genres=genres,
-        ott=ott_str,
-        quality=quality_str,
-        language=language_str,
-        episodes=epi_block,
-        rating=movie_doc.get("rating", "N/A"),
+        details=details,
         search_link=temp.B_LINK
     )
