@@ -105,7 +105,12 @@ async def _check_one(bot, user_id, channel_id, request=False):
 
     blocking = True
     try:
-        member = await bot.get_chat_member(channel_id, user_id)
+        try:
+            member = await bot.get_chat_member(channel_id, user_id)
+        except (KeyError, ValueError, PeerIdInvalid):
+            # Pyrogram has not cached this channel yet ("Peer id invalid") -> resolve it once and retry
+            await bot.get_chat(channel_id)
+            member = await bot.get_chat_member(channel_id, user_id)
         if not _needs_to_join(member):
             if request and member.status != enums.ChatMemberStatus.BANNED:
                 await db.add_join_req(user_id, channel_id)

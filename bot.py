@@ -79,6 +79,20 @@ async def dreamxbotz_start():
     today = date.today()
     now = datetime.now(tz)
     time_str = now.strftime("%H:%M:%S %p")
+    # Force-sub self check: also warms up the channel peers so membership checks work right after start
+    try:
+        from utils import fsub_status
+        if AUTH_CHANNELS or AUTH_REQ_CHANNELS:
+            fs_lines = await fsub_status(dreamxbotz, AUTH_CHANNELS)
+            fs_lines += await fsub_status(dreamxbotz, AUTH_REQ_CHANNELS, request=True)
+            for line in fs_lines:
+                logging.info(f"Force-sub: {line}")
+            if any(l.startswith(("⚠️", "❌")) for l in fs_lines):
+                await dreamxbotz.send_message(LOG_CHANNEL, "<b>⚠️ Force-sub problem</b>\n" + "\n".join(fs_lines))
+        else:
+            logging.warning("Force-sub: no channel configured (FSUB_CHANNEL_1 / FSUB_CHANNEL_2 / AUTH_CHANNELS).")
+    except Exception as e:
+        logging.warning(f"Force-sub self check failed: {e}")
     await dreamxbotz.send_message(chat_id=LOG_CHANNEL, text=script.RESTART_TXT.format(temp.B_LINK, today, time_str))
     app = web.AppRunner(await web_server())
     await app.setup()

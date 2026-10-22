@@ -29,6 +29,10 @@ services:
       - key: PREMIUM_LOGS
         sync: false
       # ---- optional ----
+      - key: FSUB_CHANNEL_1
+        sync: false          # 1st force-sub channel id (bot must be ADMIN there)
+      - key: FSUB_CHANNEL_2
+        sync: false          # 2nd force-sub channel id (bot must be ADMIN there)
       - key: SHORTENER_API
         sync: false
       - key: SHORTENER_API2

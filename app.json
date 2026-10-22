@@ -50,6 +50,14 @@
             "description": "Username or ID of users to give access of inline search. Separate multiple users by space.\nLeave it empty if you don't want to restrict bot usage.",
             "required": false
         },
+        "FSUB_CHANNEL_1": {
+            "description": "1st force-sub channel ID (e.g. -1001234567890). Bot must be ADMIN in it.",
+            "required": false
+        },
+        "FSUB_CHANNEL_2": {
+            "description": "2nd force-sub channel ID. Bot must be ADMIN in it.",
+            "required": false
+        },
         "AUTH_CHANNEL": {
             "description": "ID of channel.Make sure bot is admin in this channel. Without subscribing this channel users cannot use bot.",
             "required": false
