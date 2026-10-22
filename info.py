@@ -179,21 +179,27 @@ PREMIUM_STREAM_MODE = is_enabled(environ.get('PREMIUM_STREAM_MODE', "True"), Tru
 # Bot Configuration
 # ============================
 
-def parse_channel_ids(*values):
+def parse_channel_ids(*values, allow_usernames=False):
     """Space/comma separated channel ids -> unique list of ints.
-    Placeholders ("-100", "0", empty) and anything that is not a number are ignored."""
+    Placeholders ("-100", "0", empty) and anything that is not a number are ignored.
+    With allow_usernames=True a public @username / t.me/username is kept as a string too."""
     out = []
     for value in values:
         for ch in str(value or "").replace(",", " ").split():
             ch = ch.strip()
-            if re.fullmatch(r"-?\d+", ch) and ch not in ("-100", "0") and int(ch) not in out:
-                out.append(int(ch))
+            if re.fullmatch(r"-?\d+", ch):
+                if ch not in ("-100", "0") and int(ch) not in out:
+                    out.append(int(ch))
+            elif allow_usernames:
+                m = re.fullmatch(r"(?:https?://)?(?:t\.me/|telegram\.me/)?@?([A-Za-z][A-Za-z0-9_]{3,31})", ch)
+                if m and m.group(1).lower() not in ("joinchat",) and m.group(1) not in out:
+                    out.append(m.group(1))
     return out
 
 AUTH_REQ_CHANNELS = parse_channel_ids(auth_req_channels)  # request-to-join force-sub channels
 # AUTH_CHANNELS + FSUB_CHANNEL_1 + FSUB_CHANNEL_2 (duplicates / placeholder -100 ignored).
 # A channel that is already in AUTH_REQ_CHANNELS is not listed twice.
-AUTH_CHANNELS = [c for c in parse_channel_ids(auth_channels, FSUB_CHANNEL_1, FSUB_CHANNEL_2) if c not in AUTH_REQ_CHANNELS]
+AUTH_CHANNELS = [c for c in parse_channel_ids(auth_channels, FSUB_CHANNEL_1, FSUB_CHANNEL_2, allow_usernames=True) if c not in AUTH_REQ_CHANNELS]
 REQST_CHANNEL = int(reqst_channel) if reqst_channel and id_pattern.search(reqst_channel) else None
 SUPPORT_CHAT_ID = int(support_chat_id) if support_chat_id and id_pattern.search(support_chat_id) else None
 LANGUAGES = {"ᴍᴀʟᴀʏᴀʟᴀᴍ":"mal","ᴛᴀᴍɪʟ":"tam","ᴇɴɢʟɪsʜ":"eng","ʜɪɴᴅɪ":"hin","ᴛᴇʟᴜɢᴜ":"tel","ᴋᴀɴɴᴀᴅᴀ":"kan","ɢᴜᴊᴀʀᴀᴛɪ":"guj","ᴍᴀʀᴀᴛʜɪ":"mar","ᴘᴜɴᴊᴀʙɪ":"pun"}

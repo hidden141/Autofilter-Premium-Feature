@@ -6,9 +6,8 @@ ENV PYTHONUNBUFFERED=1 \
 
 # git is needed if requirements.txt installs packages from GitHub;
 # gcc/build-essential are needed to build tgcrypto and similar packages;
-# fonts-dejavu-core is needed so poster_gen.py (group poster) can draw readable text
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends git gcc build-essential fonts-dejavu-core && \
+    apt-get install -y --no-install-recommends git gcc build-essential && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
