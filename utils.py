@@ -5,8 +5,9 @@ import logging
 from info import *
 from imdb import Cinemagoer 
 import asyncio
+import time
 from pyrogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
-from pyrogram.errors import InputUserDeactivated, UserNotParticipant, FloodWait, UserIsBlocked, PeerIdInvalid, ChatAdminRequired, MessageNotModified
+from pyrogram.errors import InputUserDeactivated, UserNotParticipant, FloodWait, UserIsBlocked, PeerIdInvalid, ChatAdminRequired, MessageNotModified, ChannelInvalid, ChannelPrivate
 from pyrogram import enums
 from typing import Union
 from Script import script
@@ -52,62 +53,103 @@ class temp(object):
     VERIFICATIONS = {}
     TEMP_INVITE_LINKS = {}
 
-async def is_req_subscribed(bot, user_id, rqfsub_channels):
-    btn = []
-    for ch_id in rqfsub_channels:
-        if await db.has_joined_channel(user_id, ch_id):
-            continue
-        try:
-            member = await bot.get_chat_member(ch_id, user_id)
-            if member.status != enums.ChatMemberStatus.BANNED:
-                await db.add_join_req(user_id, ch_id)
-                continue
-        except UserNotParticipant:
-            pass
-        except Exception as e:
-            logger.error(f"Error checking membership in {ch_id}: {e}")
+# ---------------------------------------------------------------------------
+# FORCE SUBSCRIBE
+# ---------------------------------------------------------------------------
+INVITE_TTL = 3600  # seconds an invite link stays cached (avoids creating a new link on every /start)
+_CONFIG_ERRORS = (ChatAdminRequired, ChannelInvalid, ChannelPrivate, PeerIdInvalid)
 
+
+def _needs_to_join(member):
+    """True when this chat-member record means the user is NOT inside the channel.
+    Banned users are let through (they can never join, so blocking them would lock them out forever)."""
+    status = member.status
+    if status == enums.ChatMemberStatus.LEFT:
+        return True
+    if status == enums.ChatMemberStatus.RESTRICTED and getattr(member, "is_member", True) is False:
+        return True
+    return False
+
+
+async def _invite_button(bot, channel_id, request=False):
+    """Join button for a channel. The invite link is created once and cached."""
+    key = (channel_id, request)
+    cached = temp.TEMP_INVITE_LINKS.get(key)
+    if cached and time.time() - cached[2] < INVITE_TTL:
+        return InlineKeyboardButton(cached[0], url=cached[1])
+
+    chat = await bot.get_chat(channel_id)
+    if chat.username and not request:
+        link = f"https://t.me/{chat.username}"
+    else:
+        invite = await bot.create_chat_invite_link(channel_id, creates_join_request=request)
+        link = invite.invite_link
+    label = f"⛔️ Join {chat.title}" if request else f"📢 Join {chat.title}"
+    temp.TEMP_INVITE_LINKS[key] = (label, link, time.time())
+    return InlineKeyboardButton(label, url=link)
+
+
+async def _check_one(bot, user_id, channel_id, request=False):
+    """Returns a join button if the user still has to join `channel_id`, else None.
+    If the bot itself cannot check the channel (not admin, wrong id ...) that channel is skipped
+    and a warning is logged, so a wrong setting can never lock every user out."""
+    if request:
         try:
-            chat   = await bot.get_chat(ch_id)
-            invite = await bot.create_chat_invite_link(
-                ch_id,
-                creates_join_request=True
-            )
-            btn.append([InlineKeyboardButton(f"⛔️ Join {chat.title}", url=invite.invite_link)])
-        except ChatAdminRequired:
-            logger.warning(f"Bot not admin in {ch_id}")
+            if await db.has_joined_channel(user_id, channel_id):
+                return None
         except Exception as e:
-            logger.warning(f"Invite link error for {ch_id}: {e}")
-            
-    return btn
+            logger.warning(f"has_joined_channel failed for {channel_id}: {e}")
+    try:
+        member = await bot.get_chat_member(channel_id, user_id)
+        if not _needs_to_join(member):
+            if request and member.status != enums.ChatMemberStatus.BANNED:
+                await db.add_join_req(user_id, channel_id)
+            return None
+    except UserNotParticipant:
+        pass
+    except _CONFIG_ERRORS as e:
+        logger.warning(f"Force-sub: bot cannot check channel {channel_id} ({type(e).__name__}). "
+                       f"Make the bot ADMIN in that channel and check the channel id. Channel skipped.")
+        return None
+    except FloodWait as e:
+        await asyncio.sleep(min(e.value, 5))
+        return None
+    except Exception as e:
+        logger.warning(f"Force-sub check failed for {channel_id}: {e}")
+        return None
+
+    try:
+        return await _invite_button(bot, channel_id, request)
+    except FloodWait as e:
+        logger.warning(f"Invite link FloodWait for {channel_id}: {e.value}s")
+    except _CONFIG_ERRORS as e:
+        logger.warning(f"Force-sub: cannot create invite link for {channel_id} ({type(e).__name__}). Make the bot ADMIN with 'Invite users' right.")
+    except Exception as e:
+        logger.warning(f"Invite link error for {channel_id}: {e}")
+    return None
+
+
+async def is_req_subscribed(bot, user_id, rqfsub_channels):
+    """Request-to-join channels. Returns a list of button rows for the channels still to join."""
+    results = await asyncio.gather(*[_check_one(bot, user_id, ch, True) for ch in rqfsub_channels])
+    return [[b] for b in results if b]
 
 
 async def is_subscribed(bot, user_id, fsub_channels):
-    btn = []
-    
-    async def check_channel(channel_id):
-        try:
-            # No need to get chat object separately
-            await bot.get_chat_member(channel_id, user_id)
-        except UserNotParticipant:
-            try:
-                chat = await bot.get_chat(int(channel_id))
-                invite_link = await bot.create_chat_invite_link(channel_id)
-                return InlineKeyboardButton(f"📢 Join {chat.title}", url=invite_link.invite_link)
-            except Exception as e:
-                logger.warning(f"Failed to create invite for {channel_id}: {e}")
-        except Exception as e:
-            logger.exception(f"is_subscribed error for {channel_id}: {e}")
-        return None
+    """Normal force-sub channels. Returns a list of button rows for the channels still to join."""
+    results = await asyncio.gather(*[_check_one(bot, user_id, ch, False) for ch in fsub_channels])
+    return [[b] for b in results if b]
 
-    tasks = [check_channel(channel_id) for channel_id in fsub_channels]
-    results = await asyncio.gather(*tasks)
 
-    for button in results:
-        if button:
-            btn.append([button])
-            
-    return btn
+def fsub_retry_button(kk, file_id):
+    """'Try again' button. Telegram allows only 64 bytes in callback_data, so a long file id
+    falls back to a normal start-link button (same payload the user originally opened)."""
+    label = "♻️ ᴛʀʏ ᴀɢᴀɪɴ ♻️"
+    cb = f"checksub#{kk}#{file_id}"
+    if len(cb.encode()) <= 64:
+        return InlineKeyboardButton(label, callback_data=cb)
+    return InlineKeyboardButton(label, url=f"https://t.me/{temp.U_NAME}?start={kk}_{file_id}")
+
 
 async def is_check_admin(bot, chat_id, user_id):
     try:
@@ -123,8 +165,8 @@ async def users_broadcast(user_id, message, is_pin):
             await m.pin(both_sides=True)
         return True, "Success"
     except FloodWait as e:
-        await asyncio.sleep(e.x)
-        return await users_broadcast(user_id, message)
+        await asyncio.sleep(e.value)
+        return await users_broadcast(user_id, message, is_pin)
     except InputUserDeactivated:
         await db.delete_user(int(user_id))
         logging.info(f"{user_id}-Removed from Database, since deleted account.")
@@ -150,8 +192,8 @@ async def groups_broadcast(chat_id, message, is_pin):
                 pass
         return "Success"
     except FloodWait as e:
-        await asyncio.sleep(e.x)
-        return await groups_broadcast(chat_id, message)
+        await asyncio.sleep(e.value)
+        return await groups_broadcast(chat_id, message, is_pin)
     except Exception as e:
         await db.delete_chat(chat_id)
         return "Error"

@@ -179,12 +179,21 @@ PREMIUM_STREAM_MODE = is_enabled(environ.get('PREMIUM_STREAM_MODE', "True"), Tru
 # Bot Configuration
 # ============================
 
-AUTH_REQ_CHANNELS = [int(ch) for ch in auth_req_channels.split() if ch and id_pattern.match(ch)] 
-AUTH_CHANNELS = list(dict.fromkeys(
-    int(ch)
-    for ch in (auth_channels.replace(",", " ").split() + [FSUB_CHANNEL_1.strip(), FSUB_CHANNEL_2.strip()])
-    if ch and ch != "-100" and id_pattern.match(ch)
-))  # AUTH_CHANNELS + FSUB_CHANNEL_1 + FSUB_CHANNEL_2 (duplicates / placeholder -100 ignored)
+def parse_channel_ids(*values):
+    """Space/comma separated channel ids -> unique list of ints.
+    Placeholders ("-100", "0", empty) and anything that is not a number are ignored."""
+    out = []
+    for value in values:
+        for ch in str(value or "").replace(",", " ").split():
+            ch = ch.strip()
+            if re.fullmatch(r"-?\d+", ch) and ch not in ("-100", "0") and int(ch) not in out:
+                out.append(int(ch))
+    return out
+
+AUTH_REQ_CHANNELS = parse_channel_ids(auth_req_channels)  # request-to-join force-sub channels
+# AUTH_CHANNELS + FSUB_CHANNEL_1 + FSUB_CHANNEL_2 (duplicates / placeholder -100 ignored).
+# A channel that is already in AUTH_REQ_CHANNELS is not listed twice.
+AUTH_CHANNELS = [c for c in parse_channel_ids(auth_channels, FSUB_CHANNEL_1, FSUB_CHANNEL_2) if c not in AUTH_REQ_CHANNELS]
 REQST_CHANNEL = int(reqst_channel) if reqst_channel and id_pattern.search(reqst_channel) else None
 SUPPORT_CHAT_ID = int(support_chat_id) if support_chat_id and id_pattern.search(support_chat_id) else None
 LANGUAGES = {"ᴍᴀʟᴀʏᴀʟᴀᴍ":"mal","ᴛᴀᴍɪʟ":"tam","ᴇɴɢʟɪsʜ":"eng","ʜɪɴᴅɪ":"hin","ᴛᴇʟᴜɢᴜ":"tel","ᴋᴀɴɴᴀᴅᴀ":"kan","ɢᴜᴊᴀʀᴀᴛɪ":"guj","ᴍᴀʀᴀᴛʜɪ":"mar","ᴘᴜɴᴊᴀʙɪ":"pun"}
