@@ -1,5 +1,4 @@
 import os
-import sys
 import asyncio
 import logging
 from pyrogram import Client, filters, enums
@@ -9,35 +8,6 @@ from info import ADMINS
 from database.users_chats_db import db
 
 logger = logging.getLogger(__name__)
-
-ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-POSTER_PATH = os.path.join(ROOT_DIR, "assets", "roaroic_poster.jpg")
-_poster_lock = asyncio.Lock()
-_poster_file_id = None  # Telegram file_id cache: poster is uploaded once, reused for every group
-
-CAPTION = (
-    "🔍 <b>अपनी मन पसंद movie का नाम search करें और पाएं instantly!</b>\n\n"
-    "👇 नीचे दिए गए बटन से हमसे जुड़ें"
-)
-
-
-async def ensure_poster():
-    """Generates the poster with Pillow (poster_gen.py) the first time, then reuses the saved file."""
-    if os.path.isfile(POSTER_PATH):
-        return True
-    async with _poster_lock:
-        if os.path.isfile(POSTER_PATH):
-            return True
-        try:
-            if ROOT_DIR not in sys.path:
-                sys.path.insert(0, ROOT_DIR)
-            import poster_gen
-            os.makedirs(os.path.dirname(POSTER_PATH), exist_ok=True)
-            await asyncio.to_thread(poster_gen.build, POSTER_PATH)
-            return os.path.isfile(POSTER_PATH)
-        except Exception as e:
-            logger.warning("Poster generation failed, using text message: %s", e)
-            return False
 
 # All links can be changed from Render environment variables if needed
 LINKS = {
@@ -132,36 +102,15 @@ async def _drop_hint(client, chat_id):
 
 
 async def send_poster(client, chat_id, pin=True):
-    """Poster image in the middle + caption + working link buttons, pinned permanently.
-    Falls back to a text message if the image cannot be sent."""
-    global _poster_file_id
+    """Text-only welcome poster with working link buttons, pinned permanently (no image)."""
     old_id = await _get_saved_id(chat_id)   # keep only ONE poster per group
-    msg = None
-    if _poster_file_id or await ensure_poster():
-        try:
-            msg = await client.send_photo(
-                chat_id=chat_id,
-                photo=_poster_file_id or POSTER_PATH,
-                caption=CAPTION,
-                reply_markup=poster_buttons(),
-                parse_mode=enums.ParseMode.HTML,
-            )
-            if not _poster_file_id and getattr(msg, "photo", None):
-                _poster_file_id = msg.photo.file_id
-        except FloodWait:
-            raise
-        except Exception as e:
-            logger.warning("Photo send failed in %s, sending text instead: %s", chat_id, e)
-            _poster_file_id = None
-            msg = None
-    if msg is None:
-        msg = await client.send_message(
-            chat_id=chat_id,
-            text=MESSAGE,
-            reply_markup=poster_buttons(),
-            parse_mode=enums.ParseMode.HTML,
-            disable_web_page_preview=True,
-        )
+    msg = await client.send_message(
+        chat_id=chat_id,
+        text=MESSAGE,
+        reply_markup=poster_buttons(),
+        parse_mode=enums.ParseMode.HTML,
+        disable_web_page_preview=True,
+    )
     await _save_id(chat_id, msg.id)
     if old_id and old_id != msg.id:
         try:
