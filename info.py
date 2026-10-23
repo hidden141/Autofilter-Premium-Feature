@@ -57,8 +57,8 @@ SUPPORT_CHAT = environ.get('SUPPORT_CHAT', 'https://t.me/+cNr_1nOUfTdjYTdl')  # 
 auth_req_channels = environ.get("AUTH_REQ_CHANNELS", "-100")# requst to join Channel for force sub (make sure bot is admin) only for bot ADMINS  
 auth_channels     = environ.get("AUTH_CHANNELS", "-100")# Channels for force sub (make sure bot is admin)
 # Easy way: put your 2 force-sub channel IDs here (bot must be admin in both). Example: -1001234567890
-FSUB_CHANNEL_1 = environ.get("FSUB_CHANNEL_1", "-100")  # 1st force sub channel ID
-FSUB_CHANNEL_2 = environ.get("FSUB_CHANNEL_2", "-100")  # 2nd force sub channel ID
+fsub_channel_1 = environ.get("FSUB_CHANNEL_1", "-100")  # 1st force sub channel ID
+fsub_channel_2 = environ.get("FSUB_CHANNEL_2", "-100")  # 2nd force sub channel ID
 
 # ============================
 # Payment Configuration
@@ -123,7 +123,7 @@ SHORTENER_API3 = environ.get("SHORTENER_API3", "1e72bd1274625811043cb1d1ca2dbcbe
 SHORTENER_WEBSITE3 = environ.get("SHORTENER_WEBSITE3", "vplink.in") # Shortener website for third website
 
 FREE_FILES_BEFORE_VERIFY = int(environ.get('FREE_FILES_BEFORE_VERIFY', "5"))  # Free files EVERY user gets per day (resets 12 AM IST) before verification starts (0 = disabled)
-FREE_DAILY_LIMIT = int(environ.get('FREE_DAILY_LIMIT', "10"))  # Max files per day (resets 12 AM IST) for NON-premium users (0 = unlimited). Premium users are always unlimited
+FREE_DAILY_LIMIT = int(environ.get('FREE_DAILY_LIMIT', "0"))  # Max files per day (resets 12 AM IST) for NON-premium users (0 = unlimited). Premium users are always unlimited
 SENDALL_PREMIUM_ONLY = is_enabled(environ.get('SENDALL_PREMIUM_ONLY', "True"), True)  # True = 'Send All' button only for Premium users (admins always allowed)
 TWO_VERIFY_GAP = int(environ.get('TWO_VERIFY_GAP', "1200")) # Time gap for two-step verification in seconds (default: 20 minutes)
 THREE_VERIFY_GAP = int(environ.get('THREE_VERIFY_GAP', "54000"))    
@@ -199,7 +199,7 @@ def parse_channel_ids(*values, allow_usernames=False):
 AUTH_REQ_CHANNELS = parse_channel_ids(auth_req_channels)  # request-to-join force-sub channels
 # AUTH_CHANNELS + FSUB_CHANNEL_1 + FSUB_CHANNEL_2 (duplicates / placeholder -100 ignored).
 # A channel that is already in AUTH_REQ_CHANNELS is not listed twice.
-AUTH_CHANNELS = [c for c in parse_channel_ids(auth_channels, FSUB_CHANNEL_1, FSUB_CHANNEL_2, allow_usernames=True) if c not in AUTH_REQ_CHANNELS]
+AUTH_CHANNELS = [c for c in parse_channel_ids(auth_channels, fsub_channel_1, fsub_channel_2, allow_usernames=True) if c not in AUTH_REQ_CHANNELS]
 REQST_CHANNEL = int(reqst_channel) if reqst_channel and id_pattern.search(reqst_channel) else None
 SUPPORT_CHAT_ID = int(support_chat_id) if support_chat_id and id_pattern.search(support_chat_id) else None
 LANGUAGES = {"ᴍᴀʟᴀʏᴀʟᴀᴍ":"mal","ᴛᴀᴍɪʟ":"tam","ᴇɴɢʟɪsʜ":"eng","ʜɪɴᴅɪ":"hin","ᴛᴇʟᴜɢᴜ":"tel","ᴋᴀɴɴᴀᴅᴀ":"kan","ɢᴜᴊᴀʀᴀᴛɪ":"guj","ᴍᴀʀᴀᴛʜɪ":"mar","ᴘᴜɴᴊᴀʙɪ":"pun"}
