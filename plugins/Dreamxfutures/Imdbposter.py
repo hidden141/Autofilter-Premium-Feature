@@ -1,10 +1,11 @@
 import re
+import time
 import aiohttp
 import warnings
 import logging
 from io import BytesIO
 from PIL import Image
-from info import DREAMXBOTZ_IMAGE_FETCH, TMDB_API_KEY
+from info import DREAMXBOTZ_IMAGE_FETCH, TMDB_API_KEY, OMDB_API_KEY
 from imdb import Cinemagoer
 
 
@@ -55,7 +56,7 @@ async def fetch_image(url, size=(860, 1200)):
     return None
 
 
-async def get_movie_details(query, id=False, file=None):
+async def _get_movie_details_imdb(query, id=False, file=None):
     try:
         if not id:
             query = query.strip().lower()
@@ -173,7 +174,7 @@ def _pick_image(items, lang):
     return items[0].get("file_path")
 
 
-async def get_movie_detailsx(query, id=False, file=None):
+async def _get_tmdb_details(query, id=False, file=None):
     """
     Fetch details + poster/backdrop straight from the official TMDB API.
     ALWAYS returns a dict. On failure -> {"error": "..."} (never None),
@@ -303,3 +304,269 @@ async def get_movie_detailsx(query, id=False, file=None):
         "poster_url": _img(poster_path),
         "backdrop_url": _img(backdrop_path),
     }
+
+
+
+# =====================================================================
+#                       OMDb  (omdbapi.com)  SUPPORT
+# =====================================================================
+OMDB_API = "https://www.omdbapi.com/"
+OMDB_CACHE_TTL = 24 * 3600          # cache each lookup for 24h (saves the 1000/day free quota)
+OMDB_CACHE_MAX = 1000
+_omdb_cache = {}                    # key -> (timestamp, result_dict)
+_omdb_blocked_until = 0             # set when OMDb says "Request limit reached!"
+
+
+def _na(v):
+    """OMDb returns the string 'N/A' for missing values."""
+    if v is None:
+        return None
+    v = str(v).strip()
+    return None if not v or v.upper() == "N/A" else v
+
+
+def _split(v):
+    v = _na(v)
+    return [x.strip() for x in v.split(",") if x.strip()] if v else []
+
+
+def _split_title_year(query, file=None):
+    """'avatar 2009' -> ('avatar', '2009').  Year can also come from the file name."""
+    title = str(query).strip().lower()
+    year = None
+    m = re.search(r'\b([12]\d{3})\b\s*$', title)
+    if m:
+        year = m.group(1)
+        title = title[:m.start()].strip()
+    elif file:
+        m = re.search(r'\b([12]\d{3})\b', file)
+        if m:
+            year = m.group(1)
+    return (title or str(query).strip().lower()), year
+
+
+def _normalize_omdb(o):
+    """Raw OMDb JSON -> the same dict shape used by get_movie_detailsx()."""
+    ratings = {r.get("Source"): r.get("Value") for r in (o.get("Ratings") or [])}
+    imdb_id = _na(o.get("imdbID"))
+    url = f"https://www.imdb.com/title/{imdb_id}" if imdb_id else None
+
+    votes = _na(o.get("imdbVotes"))
+    try:
+        votes = int(votes.replace(",", "")) if votes else None
+    except ValueError:
+        votes = None
+    try:
+        rating = float(_na(o.get("imdbRating"))) if _na(o.get("imdbRating")) else None
+    except ValueError:
+        rating = None
+
+    kind = "tv series" if (o.get("Type") or "").lower() == "series" else "movie"
+    released = _na(o.get("Released"))
+    year = _na(o.get("Year"))
+    year_val = int(year[:4]) if year and year[:4].isdigit() else None
+    seasons = _na(o.get("totalSeasons"))
+
+    return {
+        "title": _na(o.get("Title")),
+        "localized_title": None,
+        "year": year_val,
+        "release_date": released or year,
+        "rating": rating,
+        "votes": votes,
+        "runtime": _na(o.get("Runtime")),
+        "certificates": _na(o.get("Rated")),
+        "tmdb_url": url,            # kept so older code paths (which read tmdb_url) still get a link
+        "url": url,
+        "imdb_url": url,
+        "kind": kind,
+        "genres": _split(o.get("Genre")),
+        "languages": _split(o.get("Language")),
+        "countries": _split(o.get("Country")),
+        "director": _split(o.get("Director")),
+        "writer": _split(o.get("Writer")),
+        "producer": [], "composer": [], "cinematographer": [],
+        "cast": _split(o.get("Actors")),
+        "plot": _na(o.get("Plot")),
+        "tagline": None,
+        "box_office": _na(o.get("BoxOffice")),
+        "seasons": int(seasons) if seasons and seasons.isdigit() else None,
+        "distributors": [],
+        "imdb_id": imdb_id,
+        "tmdb_id": None,
+        "poster_url": _na(o.get("Poster")),
+        "backdrop_url": None,
+        # OMDb-only extras
+        "rt_rating": ratings.get("Rotten Tomatoes"),
+        "metascore": _na(o.get("Metascore")),
+        "awards": _na(o.get("Awards")),
+    }
+
+
+async def _omdb_request(params):
+    """One OMDb call. Returns raw JSON dict or None. Handles quota / bad key gracefully."""
+    global _omdb_blocked_until
+    if time.time() < _omdb_blocked_until:
+        return None
+    q = dict(params, apikey=OMDB_API_KEY.strip(), r="json")
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(OMDB_API, params=q, timeout=aiohttp.ClientTimeout(total=15)) as resp:
+                data = await resp.json(content_type=None)
+                if resp.status == 401 or "limit" in str(data.get("Error", "")).lower():
+                    logger.error(f"OMDb: {data.get('Error')} - pausing OMDb for 6 hours")
+                    _omdb_blocked_until = time.time() + 6 * 3600
+                    return None
+                if resp.status != 200:
+                    logger.error(f"OMDb request failed [{resp.status}]")
+                    return None
+                return data
+    except Exception as e:
+        logger.error(f"OMDb request error: {e}")
+        return None
+
+
+async def get_omdb_details(title=None, imdb_id=None, year=None):
+    """
+    Look a title up on OMDb (by IMDb id when known, else by title [+year]).
+    ALWAYS returns a dict: normalized details, or {"error": "..."}.
+    Results are cached for 24h.
+    """
+    if not OMDB_API_KEY:
+        return {"error": "OMDB_API_KEY is not set (free key: https://www.omdbapi.com/apikey.aspx)"}
+
+    key = (imdb_id or f"{title}|{year}").lower()
+    hit = _omdb_cache.get(key)
+    if hit and time.time() - hit[0] < OMDB_CACHE_TTL:
+        return hit[1]
+
+    data = None
+    if imdb_id:
+        data = await _omdb_request({"i": imdb_id, "plot": "full"})
+    elif title:
+        if year:
+            data = await _omdb_request({"t": title, "y": year, "plot": "full"})
+        if not data or data.get("Response") != "True":
+            data = await _omdb_request({"t": title, "plot": "full"})
+        if not data or data.get("Response") != "True":
+            found = await _omdb_request({"s": title})
+            hits = (found or {}).get("Search") or []
+            hits = [h for h in hits if h.get("Type") in ("movie", "series")] or hits
+            if year:
+                hits = sorted(hits, key=lambda h: str(h.get("Year", "")).startswith(str(year)), reverse=True)
+            if hits:
+                data = await _omdb_request({"i": hits[0]["imdbID"], "plot": "full"})
+
+    if not data or data.get("Response") != "True":
+        return {"error": f"OMDb: {(data or {}).get('Error', 'no response')}"}
+
+    result = _normalize_omdb(data)
+    if len(_omdb_cache) >= OMDB_CACHE_MAX:
+        _omdb_cache.clear()
+    _omdb_cache[key] = (time.time(), result)
+    return result
+
+
+def _merge_omdb(base, omdb):
+    """
+    Merge OMDb into an existing details dict (TMDB or IMDb-scraper).
+      - IMDb rating + votes come from OMDb (official IMDb numbers)
+      - RT / Metascore / awards are added
+      - anything missing in `base` is filled from OMDb
+    """
+    if not omdb or omdb.get("error"):
+        return base
+    out = dict(base)
+    if omdb.get("rating"):
+        out["rating"] = omdb["rating"]
+    if omdb.get("votes"):
+        out["votes"] = omdb["votes"]
+    for k in ("rt_rating", "metascore", "awards"):
+        out[k] = omdb.get(k)
+    for k in ("plot", "certificates", "runtime", "languages", "countries", "director", "writer",
+              "cast", "genres", "poster_url", "year", "release_date", "box_office", "imdb_id", "seasons"):
+        if not out.get(k) and omdb.get(k):
+            out[k] = omdb[k]
+    if omdb.get("url") and not out.get("imdb_url"):
+        out["imdb_url"] = omdb["url"]
+    out["sources"] = (out.get("sources") or "base") + "+OMDb"
+    return out
+
+
+# =====================================================================
+#              PUBLIC FUNCTIONS (TMDB + OMDb + IMDb chained)
+# =====================================================================
+async def get_movie_detailsx(query, id=False, file=None):
+    """
+    TMDB first (posters/backdrop/cast), enriched with OMDb (IMDb rating, RT, Metascore, awards).
+      * TMDB ok  + OMDb key  -> merged result
+      * TMDB fail/no key     -> OMDb-only result (if OMDB_API_KEY set)
+      * OMDb fail            -> plain TMDB result
+    ALWAYS returns a dict; failure -> {"error": "..."}.
+    """
+    tmdb = await _get_tmdb_details(query, id=id, file=file)
+    if not OMDB_API_KEY:
+        return tmdb
+
+    q = str(query).strip()
+    if tmdb and not tmdb.get("error"):
+        if tmdb.get("imdb_id"):
+            omdb = await get_omdb_details(imdb_id=tmdb["imdb_id"])
+        else:
+            title = tmdb.get("title") or q
+            omdb = await get_omdb_details(title=title, year=tmdb.get("year"))
+        tmdb["imdb_url"] = tmdb.get("imdb_url") or (
+            f"https://www.imdb.com/title/{tmdb['imdb_id']}" if tmdb.get("imdb_id") else None)
+        merged = _merge_omdb(tmdb, omdb)
+        merged["sources"] = merged.get("sources", "TMDB").replace("base", "TMDB")
+        return merged
+
+    # ---- TMDB failed -> OMDb only ----
+    if id:
+        if q.startswith("tt"):
+            omdb = await get_omdb_details(imdb_id=q)
+        else:
+            return tmdb                      # a bare TMDB id can't be looked up on OMDb
+    else:
+        title, year = _split_title_year(q, file)
+        omdb = await get_omdb_details(title=title, year=year)
+    if omdb.get("error"):
+        return {"error": f"{(tmdb or {}).get('error')} | {omdb['error']}"}
+    omdb["sources"] = "OMDb"
+    return omdb
+
+
+async def get_movie_details(query, id=False, file=None):
+    """
+    IMDb (Cinemagoer) details, enriched with OMDb extras.  If IMDb scraping fails
+    (it breaks often) and OMDB_API_KEY is set, OMDb is used instead.
+    """
+    base = None
+    try:
+        base = await _get_movie_details_imdb(query, id=id, file=file)
+    except Exception as e:
+        logger.error(f"IMDb lookup failed: {e}")
+    if not OMDB_API_KEY:
+        return base
+
+    if base:
+        imdb_id = base.get("imdb_id")
+        if imdb_id and imdb_id != "ttNone":
+            omdb = await get_omdb_details(imdb_id=imdb_id)
+        else:
+            omdb = await get_omdb_details(title=base.get("title"), year=base.get("year"))
+        merged = _merge_omdb(base, omdb)
+        merged["imdb_url"] = merged.get("imdb_url") or merged.get("url")
+        return merged
+
+    q = str(query).strip()
+    if id:
+        imdb_id = q if q.startswith("tt") else ("tt" + q.zfill(7) if q.isdigit() else None)
+        omdb = await get_omdb_details(imdb_id=imdb_id) if imdb_id else {"error": "bad id"}
+    else:
+        title, year = _split_title_year(q, file)
+        omdb = await get_omdb_details(title=title, year=year)
+    if omdb.get("error"):
+        return None
+    omdb["sources"] = "OMDb"
+    return omdb
