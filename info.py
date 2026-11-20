@@ -94,6 +94,7 @@ LINK_PREVIEW = is_enabled(str(environ.get('LINK_PREVIEW', True)), True) # Shows 
 ABOVE_PREVIEW = is_enabled(str(environ.get('ABOVE_PREVIEW', True)), True) # Shows link preview above the text in notification msg if True else below the msg
 TMDB_API_KEY = environ.get('TMDB_API_KEY', '') # preffer to use your own tmdb API Key get it from https://www.themoviedb.org/settings/api
 TMDB_POSTER = is_enabled(str(environ.get('TMDB_POSTER', False)), False) # Shows TMDB poster in notification msg
+OMDB_API_KEY = environ.get('OMDB_API_KEY', '') # free key (1000 req/day) from https://www.omdbapi.com/apikey.aspx - gives IMDb rating/votes, Rotten Tomatoes, Metascore, awards. Works together with TMDB (merge + fallback)
 LANDSCAPE_POSTER = is_enabled(str(environ.get('LANDSCAPE_POSTER', True)), True) # Shows landscape poster in notification msg
 BUTTON_COLOR_CHANGE = is_enabled(str(environ.get('BUTTON_COLOR_CHANGE', True)), True)  # GET FILES button colour keeps changing (True) / fixed (False)
 BUTTON_COLOR_INTERVAL = int(environ.get('BUTTON_COLOR_INTERVAL', '60'))  # seconds between colour changes (keep >= 30 to avoid FloodWait)

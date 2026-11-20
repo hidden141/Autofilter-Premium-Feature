@@ -41,6 +41,8 @@ services:
         sync: false
       - key: TMDB_API_KEY
         sync: false
+      - key: OMDB_API_KEY
+        sync: false          # free key from omdbapi.com - IMDb rating, Rotten Tomatoes, awards
       - key: CACHE_TIME
         value: "300"
       - key: ULTRA_FAST_MODE

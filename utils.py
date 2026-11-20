@@ -282,7 +282,7 @@ async def add_name_to_db(filename):
     
     return await db.add_name(filename) 
 
-async def get_poster(query, bulk=False, id=False, file=None):
+async def _get_poster_imdb(query, bulk=False, id=False, file=None):
     if not id:
         query = (query.strip()).lower()
         title = query
@@ -373,6 +373,20 @@ async def get_poster(query, bulk=False, id=False, file=None):
         'url':f'https://www.imdb.com/title/tt{movieid}'
     }
     
+async def get_poster(query, bulk=False, id=False, file=None):
+    """IMDb (Cinemagoer) first; if it fails/finds nothing, fall back to OMDb/TMDB (needs their API keys)."""
+    result = None
+    try:
+        result = await _get_poster_imdb(query, bulk=bulk, id=id, file=file)
+    except Exception as e:
+        logger.error(f"IMDb poster lookup failed: {e}")
+    if result or bulk or not (OMDB_API_KEY or TMDB_API_KEY):
+        return result
+    q = str(query)
+    if id and q.isdigit():
+        q = "tt" + q.zfill(7)      # Cinemagoer numeric id -> IMDb id
+    return await get_posterx(q, id=id, file=file)
+
 async def get_posterx(query, bulk=False, id=False, file=None):
     """
     Fetches movie details from TMDB using the get_movie_detailsx helper
@@ -410,7 +424,7 @@ async def get_posterx(query, bulk=False, id=False, file=None):
         "seasons": details.get('seasons'),
         "box_office": details.get('box_office'),
         'localized_title': details.get('localized_title'),
-        'kind': 'movie' if 'movie' in (details.get('tmdb_url') or '') else 'tv series',
+        'kind': details.get('kind') or ('movie' if 'movie' in (details.get('tmdb_url') or '') else 'tv series'),
         "imdb_id": details.get('imdb_id'),
         "cast": list_to_str(details.get("cast")),
         "runtime": list_to_str(details.get("runtime")),
@@ -430,8 +444,11 @@ async def get_posterx(query, bulk=False, id=False, file=None):
         'poster': details.get('poster_url'),
         'backdrop' : details.get('backdrop_url'),
         'plot': plot,
-        'rating': str(details.get("rating", "N/A")),
-        'url': details.get('tmdb_url')
+        'rating': str(details.get("rating") or "N/A"),
+        'url': details.get('tmdb_url'),
+        'rt_rating': details.get('rt_rating'),
+        'metascore': details.get('metascore'),
+        'awards': details.get('awards'),
     }
     
 async def search_gagala(text):
@@ -899,6 +916,9 @@ async def get_cap(settings, remaining_seconds, files, query, total_results, sear
                         query=search, 
                         title=imdb['title'],
                         votes=imdb['votes'],
+                        rt_rating=imdb.get('rt_rating') or 'N/A',
+                        metascore=imdb.get('metascore') or 'N/A',
+                        awards=imdb.get('awards') or 'N/A',
                         aka=imdb["aka"],
                         seasons=imdb["seasons"],
                         box_office=imdb['box_office'],

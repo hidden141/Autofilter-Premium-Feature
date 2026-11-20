@@ -83,3 +83,16 @@ restart             – Restart the bot
 ---
 
 <p align="center"><b>Jai Shree Krishna 🙏😉</b></p>
+
+
+## TMDB + OMDb (movie details / posters)
+
+Set both keys in your env (Render → Environment):
+
+| Var | Where to get it | What it gives |
+|-----|-----------------|---------------|
+| `TMDB_API_KEY` | themoviedb.org/settings/api | poster, landscape backdrop, cast, crew |
+| `OMDB_API_KEY` | omdbapi.com/apikey.aspx (free, 1000/day) | IMDb rating + votes, Rotten Tomatoes, Metascore, awards |
+
+Order: **TMDB → merged with OMDb → fallback IMDb scraping**. If TMDB fails, OMDb alone is used; if OMDb quota ends, TMDB keeps working. OMDb results are cached for 24h.
+Extra template placeholders you can use: `{rt_rating}` `{metascore}` `{awards}`.
