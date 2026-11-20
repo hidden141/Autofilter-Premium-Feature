@@ -18,6 +18,14 @@
     "website": "https://github.com/DreamXBotz/Auto_Filter_Bot.git",
     "repository": "https://github.com/DreamXBotz/Auto_Filter_Bot.git",
     "env": {
+        "OMDB_API_KEY": {
+            "description": "Optional. Free key from https://www.omdbapi.com/apikey.aspx (IMDb rating, Rotten Tomatoes, awards). Works together with TMDB.",
+            "required": false
+        },
+        "TMDB_API_KEY": {
+            "description": "Optional but recommended. TMDB API key / read-access token for posters.",
+            "required": false
+        },
         "BOT_TOKEN": {
             "description": "Your bot token.",
             "required": true
